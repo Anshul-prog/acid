@@ -8,6 +8,7 @@ import (
         "highperf-api/internal/clickhouse"
         "highperf-api/internal/config"
         "highperf-api/internal/database"
+        "highperf-api/internal/dbsearch"
         "highperf-api/internal/handlers"
         "highperf-api/internal/middleware"
         "highperf-api/internal/pipeline"
@@ -19,6 +20,7 @@ import (
         "syscall"
         "time"
 
+        "github.com/jackc/pgx/v5/pgxpool"
         asciiart "github.com/romance-dev/ascii-art"
         _ "github.com/romance-dev/ascii-art/fonts"
 )
@@ -117,6 +119,50 @@ func main() {
         }
 
         pipelineHandler := handlers.NewPipelineHandler(pipelineProcessor)
+
+        // ═══════════════════════════════════════════════════════════
+        // 🔍 DB-SEARCH + ENTITY INTELLIGENCE LAYER
+        // #dbsearch: initialised here; EntityRepository shares the same pool.
+        // SearchService loads metadata from every registered PostgreSQL source.
+        // On large databases (millions of tables) this may take a few seconds —
+        // the server holds the startup log until it finishes.
+        // ═══════════════════════════════════════════════════════════
+        entityRepo := database.NewEntityRepository(pool.Pool)
+
+        var adminSearchHandler *handlers.AdminSearchHandler
+        var entityHandler *handlers.EntityHandler
+
+        if cfg.EnableDBSearch {
+                // Build the pool map. Currently one source ("default") = primary DB.
+                // Add more entries here for multi-tenant / multi-source setups.
+                pools := map[string]*pgxpool.Pool{"default": pool.Pool}
+
+                searchSvc, err := dbsearch.NewSearchService(ctx, pools)
+                if err != nil {
+                        log.Printf("⚠️  DB-search metadata load failed: %v (search disabled)", err)
+                } else {
+                        log.Printf("✅ DB-search ready — %d data sources", len(searchSvc.DataSourceIDs()))
+
+                        adminSearchHandler = handlers.NewAdminSearchHandler(searchSvc, entityRepo)
+                        entityHandler = handlers.NewEntityHandler(entityRepo, searchSvc)
+
+                        // #background-refresh: re-scan schema every 10 minutes so newly
+                        // created tables are automatically discovered without restart.
+                        go func() {
+                                ticker := time.NewTicker(10 * time.Minute)
+                                defer ticker.Stop()
+                                for range ticker.C {
+                                        if err := searchSvc.Refresh(context.Background()); err != nil {
+                                                log.Printf("⚠️  Schema refresh error: %v", err)
+                                        } else {
+                                                log.Println("🔄 Schema metadata refreshed")
+                                        }
+                                }
+                        }()
+                }
+        } else {
+                log.Println("ℹ️  DB-search disabled (ENABLE_DB_SEARCH=false)")
+        }
 
         // ═══════════════════════════════════════════════════════════
         // 🔐 AUTHENTICATION SETUP (Updated with JWT)
@@ -219,12 +265,136 @@ func main() {
         mux.Handle("GET /api/cdc/status", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetCDCStatus)))
 
         // ═══════════════════════════════════════════════════════════
+        // 🔍 INTELLIGENCE SEARCH ROUTES
+        // #routes: all require valid JWT; admin routes additionally check role.
+        // Handlers are nil-safe — if EnableDBSearch=false they return 501.
+        // ═══════════════════════════════════════════════════════════
+        mux.Handle("GET /api/smart-search", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if entityHandler == nil {
+                                http.Error(w, `{"error":"search not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        entityHandler.HandleSmartSearch(w, r)
+                }),
+        ))
+
+        // Entity profile & export
+        mux.Handle("GET /api/entities/{id}/profile", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if entityHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        entityHandler.HandleGetEntityProfile(w, r)
+                }),
+        ))
+        mux.Handle("GET /api/entities/{id}/export", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if entityHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        entityHandler.HandleExportEntityProfile(w, r)
+                }),
+        ))
+
+        // Cases
+        mux.Handle("GET /api/cases", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if entityHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        entityHandler.HandleListCases(w, r)
+                }),
+        ))
+        mux.Handle("GET /api/cases/{id}", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if entityHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        entityHandler.HandleGetCase(w, r)
+                }),
+        ))
+        mux.Handle("GET /api/cases/{id}/entities", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if entityHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        entityHandler.HandleGetCaseEntities(w, r)
+                }),
+        ))
+
+        // Work sessions
+        mux.Handle("POST /api/work-sessions", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if entityHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        entityHandler.HandleStartWorkSession(w, r)
+                }),
+        ))
+        mux.Handle("PATCH /api/work-sessions/{id}/end", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if entityHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        entityHandler.HandleEndWorkSession(w, r)
+                }),
+        ))
+        mux.Handle("GET /api/work-sessions", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if entityHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        entityHandler.HandleListWorkSessions(w, r)
+                }),
+        ))
+
+        // Admin DB-search console (admin role required — enforced inside handler)
+        mux.Handle("GET /api/admin/db-search", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if adminSearchHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        adminSearchHandler.HandleDBSearch(w, r)
+                }),
+        ))
+        mux.Handle("GET /api/admin/db-search/sources", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if adminSearchHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        adminSearchHandler.HandleDBSearchSources(w, r)
+                }),
+        ))
+        mux.Handle("POST /api/admin/db-search/refresh", authMiddleware.RequireAuth(
+                http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        if adminSearchHandler == nil {
+                                http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+                                return
+                        }
+                        adminSearchHandler.HandleDBSearchRefresh(w, r)
+                }),
+        ))
+
+        // ═══════════════════════════════════════════════════════════
         // 🛡️ GLOBAL MIDDLEWARE
         // ═══════════════════════════════════════════════════════════
 
         handler := middleware.RateLimiter(mux)
         handler = middleware.CORS(handler)
         handler = middleware.Logger(handler)
+        // #forensic: AuditLogger records every request to entity_access_logs
+        handler = middleware.AuditLogger(pool.Pool)(handler)
 
         server := &http.Server{
                 Addr:         fmt.Sprintf(":%s", cfg.Port),

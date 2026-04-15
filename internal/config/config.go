@@ -22,6 +22,7 @@ type Config struct {
 	ClickHousePassword string
 	ClickHouseDSN      string
 	EnableCDC          bool
+	EnableDBSearch     bool   // #feature-flag: gates /api/admin/db-search + entity endpoints
 	JWTSecret          string
 }
 
@@ -44,6 +45,7 @@ func LoadConfig() *Config {
 		ClickHouseUser:     getEnv("CLICKHOUSE_USER", "default"),
 		ClickHousePassword: getEnv("CLICKHOUSE_PASSWORD", ""),
 		EnableCDC:          getEnv("ENABLE_CDC", "true") == "true",
+		EnableDBSearch:     getEnv("ENABLE_DB_SEARCH", "true") == "true",
 		JWTSecret:          getEnv("JWT_SECRET", "lsd-jwt-secret-key-2026-change-in-production"),
 	}
 
