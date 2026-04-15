@@ -90,17 +90,17 @@ graph TB
 
 # Prerequisites
 
-- **Go 1.24+** installed
-- **PostgreSQL 15+** running
-- **Redis** (optional, for caching)
-- **ClickHouse** (optional, for accelerated search)
+- Go 1.24+ installed
+- PostgreSQL 15+ running
+- Redis (optional, for caching)
+- ClickHouse (optional, for accelerated search)
 
 Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/Daveshvats/L.S.D.git
-cd L.S.D
+git clone https://github.com/vinayyadav36/acid
+cd acid
 
 # Copy environment configuration
 cp .env.example .env
