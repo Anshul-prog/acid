@@ -123,11 +123,21 @@ The API will be available at `http://localhost:8080`
 
 ### Windows one-click startup (beginner-friendly)
 
+- **Single menu (best for new users)**: `scripts\start-menu.bat`
 - **Backend only**: `scripts\start-backend.bat`
 - **Frontend only (opens UI, requires backend already running)**: `scripts\start-frontend.bat`
 - **Full stack (starts backend, waits for health, then opens frontend)**: `scripts\start-fullstack.bat`
 
 Frontend files live in `/web`, but they are served by the Go backend on the same port.
+
+### Database workspace (organized for new contributors)
+
+- Store SQL files in `/databases` only
+- Use `scripts\database-manager.bat` to list/apply files
+- Quick commands:
+  - `scripts\database-manager.bat list`
+  - `scripts\database-manager.bat apply databases\migrations\001_example.sql`
+  - `scripts\database-manager.bat apply-all migrations`
 
 # First API Call
 
