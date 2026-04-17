@@ -5,6 +5,7 @@
 *.so
 *.dylib
 highperf-api
+api
 
 # Test binary
 *.test

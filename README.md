@@ -121,6 +121,14 @@ go run ./cmd/api
 
 The API will be available at `http://localhost:8080`
 
+### Windows one-click startup (beginner-friendly)
+
+- **Backend only**: `scripts\start-backend.bat`
+- **Frontend only (opens UI, requires backend already running)**: `scripts\start-frontend.bat`
+- **Full stack (starts backend, waits for health, then opens frontend)**: `scripts\start-fullstack.bat`
+
+Frontend files live in `/web`, but they are served by the Go backend on the same port.
+
 # First API Call
 
 ```bash
