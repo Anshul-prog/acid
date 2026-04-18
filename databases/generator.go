@@ -287,7 +287,7 @@ func generateUUID() string {
 }
 
 func generatePhone() string {
-	return fmt.Sprintf("+1-%d%03d-%03d-%04d",
+	return fmt.Sprintf("+1-%03d-%03d-%04d",
 		randRange(200, 999),
 		randRange(100, 999),
 		randRange(1000, 9999))

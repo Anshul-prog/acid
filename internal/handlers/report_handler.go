@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -24,7 +25,7 @@ type ReportHandler struct {
 	multiDB     *database.MultiDBManager
 	maxPageSize int
 	defaultSize int
-	timeout    time.Duration
+	timeout     time.Duration
 }
 
 func NewReportHandler(repo *database.DynamicRepository, registry *schema.SchemaRegistry, multiDB *database.MultiDBManager) *ReportHandler {
@@ -36,7 +37,7 @@ func NewReportHandler(repo *database.DynamicRepository, registry *schema.SchemaR
 		multiDB:     multiDB,
 		maxPageSize: 1000,
 		defaultSize: 20,
-		timeout:    30 * time.Second,
+		timeout:     30 * time.Second,
 	}
 }
 
@@ -93,7 +94,7 @@ func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
 
 	switch reportFormat {
 	case "csv":
-		h.exportCSV(w, filename+ "_all", allData)
+		h.exportCSV(w, filename+"_all", allData)
 	case "json":
 		h.exportJSON(w, filename+"_all", allData)
 	case "pdf":
@@ -104,8 +105,8 @@ func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
 func (h *ReportHandler) fetchTableData(ctx context.Context, dbName, tableName, searchTerm string, limit int) ([]map[string]interface{}, error) {
 	queryParams := schema.QueryParams{
 		TableName: tableName,
-		Limit:    limit,
-		Filters:  make(map[string]string),
+		Limit:     limit,
+		Filters:   make(map[string]string),
 	}
 
 	if searchTerm != "" {
@@ -366,7 +367,7 @@ func (h *ReportHandler) ListDatabases(w http.ResponseWriter, r *http.Request) {
 
 	h.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"databases": meta,
-		"count":    len(meta),
+		"count":     len(meta),
 	})
 }
 
@@ -397,9 +398,9 @@ func (h *ReportHandler) GetCrossRef(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, map[string]interface{}{
-		"query":           entityValue,
+		"query":          entityValue,
 		"column":         columnName,
-		"matches":       results,
+		"matches":        results,
 		"total_matches":  len(results),
 		"has_duplicates": len(results) > 1,
 	})
@@ -410,23 +411,20 @@ const ReportNumTablesPerDB = 1000
 const ReportUsersPerTable = 50
 
 func (h *ReportHandler) GenerateSystemReport(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
-	defer cancel()
-
 	reportFormat := r.URL.Query().Get("format")
 	if reportFormat == "" {
 		reportFormat = "csv"
 	}
 
 	h.writeJSON(w, http.StatusOK, map[string]interface{}{
-		"generated_at":  time.Now().Format(time.RFC3339),
+		"generated_at": time.Now().Format(time.RFC3339),
 		"report_type":  "system_full",
-		"format":      reportFormat,
-		"status":     "ready",
+		"format":       reportFormat,
+		"status":       "ready",
 		"summary": map[string]interface{}{
 			"total_databases": ReportNumDatabases,
-			"total_tables": ReportNumDatabases * ReportNumTablesPerDB,
-			"total_users": ReportNumDatabases * ReportNumTablesPerDB * ReportUsersPerTable,
+			"total_tables":    ReportNumDatabases * ReportNumTablesPerDB,
+			"total_users":     ReportNumDatabases * ReportNumTablesPerDB * ReportUsersPerTable,
 		},
 	})
 }
