@@ -1,5 +1,22 @@
 package handlers
 
+// =============================================================================
+// ACID - Dynamic HTTP Request Handlers
+// =============================================================================
+// This file handles ALL HTTP requests related to database operations.
+// Think of it as the "traffic controller" for database requests.
+//
+// WHAT THIS FILE DOES:
+// 1. Lists all tables in your database
+// 2. Gets table schema (columns, types, etc.)
+// 3. Fetches records with pagination
+// 4. Searches across tables
+// 5. Gets table statistics
+// 6. Handles health checks
+//
+// FOR DEVELOPERS: This is the main file that connects frontend to backend!
+// =============================================================================
+
 import (
 	"compress/gzip"
 	"context"
@@ -11,10 +28,11 @@ import (
 	"strings"
 	"time"
 
-	"highperf-api/internal/cache"
-	chpkg "highperf-api/internal/clickhouse"
-	"highperf-api/internal/database"
-	"highperf-api/internal/schema"
+	// INTERNAL IMPORTS - Our own modules
+	"acid/internal/cache"         // Redis caching
+	chpkg "acid/internal/clickhouse" // ClickHouse search
+	"acid/internal/database"    // Database operations
+	"acid/internal/schema"     // Schema discovery
 )
 
 type DynamicHandler struct {
@@ -350,7 +368,120 @@ func (h *DynamicHandler) SearchOptimized(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// Update GetEntityStats
+func (h *DynamicHandler) enrichWithDuplicateTags(record map[string]interface{}) {
+	dupDB, hasDup := record["duplicate_db"].(string)
+	if hasDup && dupDB != "" {
+		dupTable, hasTable := record["duplicate_table"].(string)
+		if hasTable && dupTable != "" {
+			var tags []string
+			if existingTags, hasTags := record["tags"].([]string); hasTags {
+				tags = existingTags
+			}
+			tags = append(tags, fmt.Sprintf("duplicate_ref:%s.%s", dupDB, dupTable))
+			record["tags"] = tags
+		}
+	}
+	record["_has_duplicate_ref"] = hasDup && dupDB != ""
+}
+
+func (h *DynamicHandler) findAllDuplicateReferences(records []map[string]interface{}) []map[string]interface{} {
+	seenPairs := make(map[string]bool)
+	var refs []map[string]interface{}
+
+	for _, record := range records {
+		if dupDB, ok := record["duplicate_db"].(string); ok && dupDB != "" {
+			if dupTable, ok := record["duplicate_table"].(string); ok && dupTable != "" {
+				key := fmt.Sprintf("%s:%s", dupDB, dupTable)
+				if !seenPairs[key] {
+					seenPairs[key] = true
+					refs = append(refs, map[string]interface{}{
+						"ref_database": dupDB,
+						"ref_table":   dupTable,
+						"ref_type":    "duplicate",
+					})
+				}
+			}
+		}
+	}
+	return refs
+}
+
+func (h *DynamicHandler) SearchGlobalWithDuplicates(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		h.writeError(w, http.StatusBadRequest, "Query parameter 'q' is required")
+		return
+	}
+
+	limit := 20
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
+	defer cancel()
+
+	startTime := time.Now()
+
+	tables := h.registry.GetAllTables()
+	resultsByTable := make(map[string][]map[string]interface{})
+
+	for _, table := range tables {
+		params := h.parseQueryParams(r, table.Name)
+		params.Limit = limit / 2
+
+		for _, col := range table.Columns {
+			if col.DataType == "character varying" || col.DataType == "text" {
+				params.Filters[col.Name] = query
+				break
+			}
+		}
+
+		if len(params.Filters) == 0 {
+			continue
+		}
+
+		result, err := h.repo.GetRecords(ctx, params)
+		if err != nil {
+			continue
+		}
+
+		for i := range result.Data {
+			h.enrichWithDuplicateTags(result.Data[i])
+		}
+
+		if len(result.Data) > 0 {
+			resultsByTable[table.Name] = result.Data
+		}
+	}
+
+	totalResults := 0
+	for _, records := range resultsByTable {
+		totalResults += len(records)
+	}
+
+	allRecords := make([]map[string]interface{}, 0)
+	for _, records := range resultsByTable {
+		allRecords = append(allRecords, records...)
+	}
+
+	duplicateRefs := h.findAllDuplicateReferences(allRecords)
+
+	h.writeJSONCompressed(w, r, http.StatusOK, map[string]interface{}{
+		"results":            resultsByTable,
+		"total_results":    totalResults,
+		"tables_searched":  len(resultsByTable),
+		"has_duplicates":  len(duplicateRefs) > 0,
+		"duplicate_refs": duplicateRefs,
+		"search_time_ms":  time.Since(startTime).Milliseconds(),
+		"query":          query,
+		"limit":         limit,
+		"search_engine":  "postgresql_with_crossref",
+	})
+}
+
 func (h *DynamicHandler) GetEntityStats(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusServiceUnavailable, map[string]interface{}{
 		"enabled": false,

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"highperf-api/internal/cache"
-	"highperf-api/internal/database"
-	"highperf-api/internal/models"
+	"acid/internal/cache"
+	"acid/internal/database"
+	"acid/internal/models"
 )
 
 type RecordService struct {

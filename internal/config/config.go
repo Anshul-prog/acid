@@ -44,7 +44,7 @@ func LoadConfig() *Config {
 		ClickHouseUser:     getEnv("CLICKHOUSE_USER", "default"),
 		ClickHousePassword: getEnv("CLICKHOUSE_PASSWORD", ""),
 		EnableCDC:          getEnv("ENABLE_CDC", "true") == "true",
-		JWTSecret:          getEnv("JWT_SECRET", "lsd-jwt-secret-key-2026-change-in-production"),
+		JWTSecret:          getEnv("JWT_SECRET", "acid-jwt-secret-key-change-in-production"),
 	}
 
 	// ═══════════════════════════════════════════════════════════

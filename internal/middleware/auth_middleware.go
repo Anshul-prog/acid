@@ -6,7 +6,7 @@ import (
         "net/http"
         "strings"
 
-        "highperf-api/internal/auth"
+        "acid/internal/auth"
 
         "github.com/jackc/pgx/v5/pgxpool"
 )

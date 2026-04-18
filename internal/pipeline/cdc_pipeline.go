@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"highperf-api/internal/clickhouse"
-	"highperf-api/internal/schema"
+	"acid/internal/clickhouse"
+	"acid/internal/schema"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

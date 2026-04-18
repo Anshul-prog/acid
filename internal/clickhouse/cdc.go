@@ -4,7 +4,7 @@ import (
         "context"
         "encoding/json"
         "fmt"
-        "highperf-api/internal/schema"
+        "acid/internal/schema"
         "log"
         "math"
         "math/rand"

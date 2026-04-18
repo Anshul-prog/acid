@@ -1,0 +1,173 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lsd-postgres
+    environment:
+      POSTGRES_USER: lsd
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lsd
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./databases:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lsd"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lsd-network
+
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: lsd-postgres-replica
+    environment:
+      POSTGRES_USER: lsd
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lsd
+    ports:
+      - "5433:5432"
+    command: >
+      postgres -c hot_standby=on -c hot_standby_feedback=on -c max_standby_streaming_delay=2s
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lsd-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: lsd-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - lsd-network
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    container_name: lsd-clickhouse
+    environment:
+      CLICKHOUSE_DB: lsd
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./databases/init-clickhouse.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lsd-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lsd-api
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgres://lsd:password@postgres:5432/lsd
+      READ_REPLICA_DSN: postgres://lsd:password@postgres-replica:5432/lsd
+      REDIS_ADDR: redis:6379
+      CLICKHOUSE_ADDR: clickhouse:9000
+      CLICKHOUSE_DB: lsd
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      ENABLE_CDC: "true"
+      JWT_SECRET: lsd-jwt-secret-key-change-in-production
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lsd-network
+    restart: unless-stopped
+
+  generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lsd-generator
+    environment:
+      DATABASE_URL: postgres://lsd:password@postgres:5432/lsd
+      NUM_DATABASES: 10
+      TABLES_PER_DB: 1000
+      USERS_PER_TABLE: 50
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "go run ./databases/generator.go"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lsd-network
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: lsd-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@lsd.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - lsd-network
+
+  adminer:
+    image: adminer:4.8-alpine
+    container_name: lsd-adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+    networks:
+      - lsd-network
+
+volumes:
+  postgres_data:
+  postgres_replica_data:
+  redis_data:
+  clickhouse_data:
+  pgadmin_data:
+
+networks:
+  lsd-network:
+    driver: bridge
+    name: lsd-network

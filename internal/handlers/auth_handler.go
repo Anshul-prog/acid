@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"time"
 
-	"highperf-api/internal/auth"
-	"highperf-api/internal/middleware"
+	"acid/internal/auth"
+	"acid/internal/middleware"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

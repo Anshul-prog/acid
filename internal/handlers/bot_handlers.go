@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"highperf-api/internal/models"
-	"highperf-api/internal/services"
+	"acid/internal/models"
+	"acid/internal/services"
 )
 
 type BotHandler struct {

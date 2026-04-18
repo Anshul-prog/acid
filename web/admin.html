@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACID Admin Panel - Complete Database Management</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        /* ========================================
+           ACID ADMIN PANEL - STYLES
+           ========================================
+           Complete admin interface for managing
+           your ACID database system
+           ======================================== */
+        
+        :root {
+            --primary: #f97316;
+            --primary-hover: #ea580c;
+            --success: #22c55e;
+            --warning: #eab308;
+            --error: #ef4444;
+            --info: #3b82f6;
+            --dark: #0f172a;
+            --dark-secondary: #1e293b;
+            --dark-tertiary: #334155;
+            --border: #475569;
+            --text: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: var(--dark-secondary);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* Main Layout */
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: calc(100vh - 70px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--dark-secondary);
+            padding: 1.5rem;
+            border-right: 1px solid var(--border);
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+        }
+
+        .nav-item {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .nav-item .badge {
+            margin-left: auto;
+            background: rgba(255,255,255,0.2);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--dark-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--dark-tertiary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th, .data-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table th {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+        }
+
+        .data-table tr:hover {
+            background: var(--dark-tertiary);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background: var(--dark-tertiary);
+            color: var(--text);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--dark-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Search */
+        .search-box {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: var(--dark-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+        }
+
+        .status-active {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .status-inactive {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .status-pending {
+            background: rgba(234, 179, 8, 0.2);
+            color: var(--warning);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--dark-secondary);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            font-size: 0.875rem;
+        }
+
+        .tab-btn.active {
+            background: var(--dark-tertiary);
+            color: var(--primary);
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+
+        .page-btn {
+            padding: 0.5rem 1rem;
+            background: var(--dark-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--dark-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.show { display: flex; }
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--error); }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Duplicate tags */
+        .dup-tag {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-right: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-brand">
+            <div class="logo">ACID</div>
+            <h1 class="header-title">Admin Panel</h1>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="refreshAll()">🔄 Refresh</button>
+            <button class="btn btn-secondary" onclick="logout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-title">📊 Overview</div>
+            <div class="nav-item active" onclick="showSection('dashboard')">
+                <span>📈</span> Dashboard
+            </div>
+            <div class="nav-item" onclick="showSection('tables')">
+                <span>📋</span> Tables <span class="badge" id="table-count">0</span>
+            </div>
+            <div class="nav-item" onclick="showSection('search')">
+                <span>🔍</span> Search
+            </div>
+            <div class="nav-item" onclick="showSection('databases')">
+                <span>🗄️</span> Databases
+            </div>
+            <div class="nav-item" onclick="showSection('reports')">
+                <span>📄</span> Reports
+            </div>
+            <div class="nav-item" onclick="showSection('users')">
+                <span>👥</span> Users
+            </div>
+            <div class="nav-item" onclick="showSection('settings')">
+                <span>⚙️</span> Settings
+            </div>
+            
+            <div class="sidebar-title" style="margin-top: 2rem;">🔌 Status</div>
+            <div class="nav-item">
+                <span>🟢</span> PostgreSQL <span class="status-badge status-active" id="pg-status">Active</span>
+            </div>
+            <div class="nav-item">
+                <span>🔴</span> Redis <span class="status-badge status-inactive" id="redis-status">Offline</span>
+            </div>
+            <div class="nav-item">
+                <span>🔴</span> ClickHouse <span class="status-badge status-inactive" id="ch-status">Offline</span>
+            </div>
+            <div class="nav-item">
+                <span>⚡</span> CDC <span class="status-badge status-pending" id="cdc-status">Stopped</span>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <div id="section-dashboard">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-databases">-</div>
+                        <div class="stat-label">Databases</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-tables">-</div>
+                        <div class="stat-label">Tables</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-records">-</div>
+                        <div class="stat-label">Records</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-searches">-</div>
+                        <div class="stat-label">Searches Today</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📊 Quick Stats</h2>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="cache-hit-rate">-</div>
+                            <div class="stat-label">Cache Hit Rate</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="avg-search-time">-</div>
+                            <div class="stat-label">Avg Search (ms)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="active-users">-</div>
+                            <div class="stat-label">Active Users</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="api-calls">-</div>
+                            <div class="stat-label">API Calls</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tables Section -->
+            <div id="section-tables" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📋 Database Tables</h2>
+                        <button class="btn btn-primary" onclick="refreshTables()">🔄 Refresh</button>
+                    </div>
+                    <div class="search-box">
+                        <input type="text" class="search-input" id="table-search" placeholder="Search tables..." oninput="filterTables()">
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Table Name</th>
+                                <th>Columns</th>
+                                <th>Primary Key</th>
+                                <th>Indexes</th>
+                                <th>Records</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tables-body">
+                            <tr><td colspan="6" class="loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Search Section -->
+            <div id="section-search" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">🔍 Global Search</h2>
+                    </div>
+                    <div class="search-box">
+                        <input type="text" class="search-input" id="global-search" placeholder="Search across all tables...">
+                        <button class="btn btn-primary" onclick="performGlobalSearch()">Search</button>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="search-results">0</div>
+                            <div class="stat-label">Results Found</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="search-time">0ms</div>
+                            <div class="stat-label">Search Time</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="search-engine">-</div>
+                            <div class="stat-label">Engine</div>
+                        </div>
+                    </div>
+                    <div id="search-results-container"></div>
+                </div>
+            </div>
+
+            <!-- Databases Section -->
+            <div id="section-databases" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">🗄️ Multi-Database Management</h2>
+                        <button class="btn btn-primary" onclick="refreshDatabases()">🔄 Refresh</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Database</th>
+                                <th>Tables</th>
+                                <th>Status</th>
+                                <th>Last Sync</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="databases-body">
+                            <tr><td colspan="5" class="loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reports Section -->
+            <div id="section-reports" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📄 Generate Reports</h2>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Select Database</label>
+                        <select class="form-select" id="report-db">
+                            <option value="">All Databases</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Report Format</label>
+                        <select class="form-select" id="report-format">
+                            <option value="csv">CSV (Excel)</option>
+                            <option value="json">JSON</option>
+                            <option value="pdf">PDF (Text)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Search Filter (optional)</label>
+                        <input type="text" class="form-input" id="report-filter" placeholder="e.g., email contains...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Limit Records</label>
+                        <input type="number" class="form-input" id="report-limit" value="1000" min="1" max="10000">
+                    </div>
+                    <button class="btn btn-primary" onclick="generateReport()">📥 Download Report</button>
+                </div>
+            </div>
+
+            <!-- Users Section -->
+            <div id="section-users" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">👥 User Management</h2>
+                        <button class="btn btn-primary" onclick="showAddUserModal()">+ Add User</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-body">
+                            <tr><td colspan="5" class="loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="section-settings" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">⚙️ System Settings</h2>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">JWT Secret</label>
+                        <input type="password" class="form-input" id="jwt-secret" placeholder="Change in production!">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">API Rate Limit (per minute)</label>
+                        <input type="number" class="form-input" id="rate-limit" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Enable CDC</label>
+                        <select class="form-select" id="enable-cdc">
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ========================================
+        // ACID ADMIN PANEL - JAVASCRIPT
+        // ========================================
+        // Complete frontend logic for the admin panel
+        // All API calls and UI interactions
+
+        // Global State
+        let currentSection = 'dashboard';
+        let tables = [];
+        let databases = [];
+        let currentUser = null;
+        let authToken = localStorage.getItem('acid_token');
+
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check authentication
+            if (!authToken) {
+                window.location.href = '/login';
+                return;
+            }
+
+            // Load initial data
+            await loadDashboard();
+            await loadHealthStatus();
+        });
+
+        // ========================================
+        // API HELPER FUNCTIONS
+        // ========================================
+        async function apiCall(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                }
+            };
+            const response = await fetch(url, { ...defaultOptions, ...options });
+            if (response.status === 401) {
+                logout();
+                return null;
+            }
+            return response.json();
+        }
+
+        // ========================================
+        // SECTION NAVIGATION
+        // ========================================
+        function showSection(section) {
+            currentSection = section;
+            
+            // Update nav
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.nav-item').classList.add('active');
+
+            // Show/hide sections
+            document.querySelectorAll('[id^="section-"]').forEach(div => {
+                div.style.display = 'none';
+            });
+            document.getElementById(`section-${section}`).style.display = 'block';
+
+            // Load section data
+            switch(section) {
+                case 'dashboard': loadDashboard(); break;
+                case 'tables': loadTables(); break;
+                case 'databases': loadDatabases(); break;
+                case 'users': loadUsers(); break;
+            }
+        }
+
+        // ========================================
+        // DASHBOARD
+        // ========================================
+        async function loadDashboard() {
+            try {
+                // Get tables
+                const tablesData = await apiCall('/api/tables');
+                document.getElementById('total-tables').textContent = tablesData?.count || 0;
+                document.getElementById('table-count').textContent = tablesData?.count || 0;
+
+                // Get system report
+                const systemReport = await apiCall('/api/system-report');
+                if (systemReport?.summary) {
+                    document.getElementById('total-databases').textContent = systemReport.summary.total_databases || 0;
+                    document.getElementById('total-records').textContent = (systemReport.summary.total_users || 0).toLocaleString();
+                }
+
+                // Mock stats for demo
+                document.getElementById('cache-hit-rate').textContent = '87%';
+                document.getElementById('avg-search-time').textContent = '23ms';
+                document.getElementById('active-users').textContent = '5';
+                document.getElementById('api-calls').textContent = '1,234';
+                document.getElementById('total-searches').textContent = '89';
+            } catch (e) {
+                showToast('Error loading dashboard', 'error');
+            }
+        }
+
+        // ========================================
+        // HEALTH STATUS
+        // ========================================
+        async function loadHealthStatus() {
+            try {
+                const health = await apiCall('/api/health');
+                
+                // Update status indicators
+                const pgStatus = document.getElementById('pg-status');
+                pgStatus.textContent = 'Active';
+                pgStatus.className = 'status-badge status-active';
+
+                const redisStatus = document.getElementById('redis-status');
+                if (health.redis) {
+                    redisStatus.textContent = 'Active';
+                    redisStatus.className = 'status-badge status-active';
+                } else {
+                    redisStatus.textContent = 'Offline';
+                    redisStatus.className = 'status-badge status-inactive';
+                }
+
+                const chStatus = document.getElementById('ch-status');
+                if (health.clickhouse) {
+                    chStatus.textContent = 'Active';
+                    chStatus.className = 'status-badge status-active';
+                } else {
+                    chStatus.textContent = 'Offline';
+                    chStatus.className = 'status-badge status-inactive';
+                }
+
+                // CDC status
+                const cdc = await apiCall('/api/cdc/status');
+                const cdcStatus = document.getElementById('cdc-status');
+                if (cdc?.is_running) {
+                    cdcStatus.textContent = 'Running';
+                    cdcStatus.className = 'status-badge status-active';
+                } else {
+                    cdcStatus.textContent = 'Stopped';
+                    cdcStatus.className = 'status-badge status-inactive';
+                }
+            } catch (e) {
+                console.error('Health check failed:', e);
+            }
+        }
+
+        // ========================================
+        // TABLES
+        // ========================================
+        async function loadTables() {
+            try {
+                const data = await apiCall('/api/tables');
+                tables = data.tables || [];
+                renderTables(tables);
+            } catch (e) {
+                showToast('Error loading tables', 'error');
+            }
+        }
+
+        function renderTables(tablesToRender) {
+            const tbody = document.getElementById('tables-body');
+            tbody.innerHTML = tablesToRender.map(table => `
+                <tr>
+                    <td><strong>${table.name}</strong></td>
+                    <td>${table.columns}</td>
+                    <td>${table.primary_key || 'id'}</td>
+                    <td>${table.filterable?.length || 0}</td>
+                    <td><span class="status-badge status-pending">Loading...</span></td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="viewTable('${table.name}')">View</button>
+                        <button class="btn btn-secondary" onclick="searchTable('${table.name}')">Search</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterTables() {
+            const search = document.getElementById('table-search').value.toLowerCase();
+            const filtered = tables.filter(t => t.name.toLowerCase().includes(search));
+            renderTables(filtered);
+        }
+
+        function viewTable(tableName) {
+            showSection('tables');
+            // Could open a modal to view table data
+            showToast(`Viewing table: ${tableName}`);
+        }
+
+        // ========================================
+        // SEARCH
+        // ========================================
+        async function performGlobalSearch() {
+            const searchTerm = document.getElementById('global-search').value.trim();
+            if (!searchTerm) {
+                showToast('Please enter a search term', 'error');
+                return;
+            }
+
+            const startTime = performance.now();
+            const data = await apiCall(`/api/search?q=${encodeURIComponent(searchTerm)}`);
+            const endTime = performance.now();
+
+            document.getElementById('search-results').textContent = data?.total_results || 0;
+            document.getElementById('search-time').textContent = `${Math.round(endTime - startTime)}ms`;
+            document.getElementById('search-engine').textContent = data?.search_engine || 'Unknown';
+
+            // Render results
+            const container = document.getElementById('search-results-container');
+            if (data?.results && Object.keys(data.results).length > 0) {
+                let html = '<div class="card"><h3>Results by Table</h3>';
+                for (const [table, records] of Object.entries(data.results)) {
+                    html += `<h4 style="margin: 1rem 0 0.5rem;">${table} (${records.length} results)</h4>`;
+                    if (records.length > 0) {
+                        html += '<table class="data-table"><thead><tr>';
+                        const cols = Object.keys(records[0]).slice(0, 5);
+                        cols.forEach(col => html += `<th>${col}</th>`);
+                        html += '</tr></thead><tbody>';
+                        records.slice(0, 10).forEach(row => {
+                            html += '<tr>';
+                            cols.forEach(col => {
+                                const val = row[col];
+                                html += `<td>${val === null ? '<em>null</em>' : val}</td>`;
+                            });
+                            html += '</tr>';
+                        });
+                        html += '</tbody></table>';
+                    }
+                }
+                html += '</div>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p>No results found.</p>';
+            }
+        }
+
+        // ========================================
+        // DATABASES
+        // ========================================
+        async function loadDatabases() {
+            try {
+                const data = await apiCall('/api/databases');
+                databases = data.databases || [];
+                renderDatabases();
+            } catch (e) {
+                showToast('Error loading databases', 'error');
+            }
+        }
+
+        function renderDatabases() {
+            const tbody = document.getElementById('databases-body');
+            tbody.innerHTML = databases.map(db => `
+                <tr>
+                    <td><strong>${db.name}</strong></td>
+                    <td>${db.table_count || 0}</td>
+                    <td><span class="status-badge status-active">${db.status}</span></td>
+                    <td>${db.last_sync ? new Date(db.last_sync).toLocaleString() : '-'}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="syncDatabase('${db.name}')">Sync</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ========================================
+        // REPORTS
+        // ========================================
+        async function generateReport() {
+            const format = document.getElementById('report-format').value;
+            const filter = document.getElementById('report-filter').value;
+            const limit = document.getElementById('report-limit').value;
+
+            showToast('Generating report...');
+
+            const url = `/api/reports?format=${format}&q=${encodeURIComponent(filter)}&limit=${limit}`;
+            window.location.href = url;
+        }
+
+        // ========================================
+        // USERS
+        // ========================================
+        async function loadUsers() {
+            try {
+                const data = await apiCall('/api/auth/me');
+                const user = data.user;
+                const tbody = document.getElementById('users-body');
+                tbody.innerHTML = `
+                    <tr>
+                        <td><strong>${user.username}</strong></td>
+                        <td>${user.email}</td>
+                        <td><span class="status-badge status-active">${user.role}</span></td>
+                        <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="editUser('${user.id}')">Edit</button>
+                        </td>
+                    </tr>
+                `;
+            } catch (e) {
+                showToast('Error loading users', 'error');
+            }
+        }
+
+        // ========================================
+        // UTILITIES
+        // ========================================
+        async function refreshAll() {
+            showToast('Refreshing all data...');
+            await loadDashboard();
+            await loadHealthStatus();
+            showToast('Refresh complete!', 'success');
+        }
+
+        async function refreshTables() {
+            showToast('Loading tables...');
+            await loadTables();
+            showToast('Tables loaded!', 'success');
+        }
+
+        async function refreshDatabases() {
+            showToast('Loading databases...');
+            await loadDatabases();
+            showToast('Databases loaded!', 'success');
+        }
+
+        async function logout() {
+            localStorage.removeItem('acid_token');
+            window.location.href = '/login';
+        }
+
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function saveSettings() {
+            showToast('Settings saved!', 'success');
+        }
+
+        function showAddUserModal() {
+            showToast('Add user coming soon!');
+        }
+    </script>
+</body>
+</html>

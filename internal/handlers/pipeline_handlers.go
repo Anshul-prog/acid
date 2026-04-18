@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"highperf-api/internal/pipeline"
+	"acid/internal/pipeline"
 
 	"github.com/google/uuid"
 )

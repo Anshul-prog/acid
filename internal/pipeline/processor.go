@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"highperf-api/internal/utils"
+	"acid/internal/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

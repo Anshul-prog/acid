@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"highperf-api/internal/schema"
+	"acid/internal/schema"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

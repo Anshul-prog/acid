@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"highperf-api/internal/schema"
+	"acid/internal/schema"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )

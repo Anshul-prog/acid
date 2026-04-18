@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"highperf-api/internal/models"
-	"highperf-api/internal/pagination"
+	"acid/internal/models"
+	"acid/internal/pagination"
 
 	"github.com/jackc/pgx/v5"
 )

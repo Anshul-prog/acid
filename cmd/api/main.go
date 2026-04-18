@@ -1,147 +1,258 @@
+// =============================================================================
+// ACID - Advanced Database Interface System
+// =============================================================================
+// Main entry point for the ACID API Server
+//
+// WHAT THIS FILE DOES:
+// This is where the application starts (entry point). Think of it as the "main door"
+// where everything begins. It's like starting a car - this is the ignition.
+//
+// HOW IT WORKS (SIMPLE EXPLANATION):
+// 1. Load configuration from .env file
+// 2. Connect to PostgreSQL database
+// 3. Set up Redis caching
+// 4. Discover database tables automatically
+// 5. Set up ClickHouse for fast search
+// 6. Initialize security (JWT tokens)
+// 7. Create all the API routes/endpoints
+// 8. Start the web server
+//
+// FOR DEVELOPERS: Don't modify this unless you need to add new features!
+// =============================================================================
 package main
 
+// =============================================================================
+// IMPORT PACKAGES - Bringing in external tools we need
+// =============================================================================
+// These are like bringing different specialists into your team:
+// - context: For handling timeouts and cancellations
+// - fmt: For printing formatted text
+// - log: For logging/debugging
+// - net/http: For creating the web server
+// - os/signal: For handling system signals (Ctrl+C)
+// - time: For time-related functions
+// - config: Our own configuration module (see internal/config/)
+// - database: Our own database module (see internal/database/)
+// - handlers: Our own request handlers (see internal/handlers/)
+// - middleware: Security and rate limiting (see internal/middleware/)
+// - pipeline: Data processing pipeline
+// - schema: Database schema discovery
+// - auth: Authentication service
+// - cache: Redis caching layer
+// - clickhouse: Fast search database
+// - asciiart: For displaying the cool banner on startup
+// =============================================================================
 import (
-        "context"
-        "fmt"
-        "highperf-api/internal/auth"
-        "highperf-api/internal/cache"
-        "highperf-api/internal/clickhouse"
-        "highperf-api/internal/config"
-        "highperf-api/internal/database"
-        "highperf-api/internal/handlers"
-        "highperf-api/internal/middleware"
-        "highperf-api/internal/pipeline"
-        "highperf-api/internal/schema"
-        "log"
-        "net/http"
-        "os"
-        "os/signal"
-        "syscall"
-        "time"
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-        asciiart "github.com/romance-dev/ascii-art"
-        _ "github.com/romance-dev/ascii-art/fonts"
+	// INTERNAL PACKAGES - Our own code modules (see internal/ folder)
+	"acid/internal/auth"         // Authentication & JWT tokens
+	"acid/internal/cache"       // Redis caching layer
+	"acid/internal/clickhouse"  // ClickHouse search engine
+	"acid/internal/config"      // Configuration loading
+	"acid/internal/database"   // Database connections & queries
+	"acid/internal/handlers"  // HTTP request handlers
+	"acid/internal/middleware" // Security & rate limiting
+	"acid/internal/pipeline"  // Data processing
+	"acid/internal/schema"   // Schema discovery
+
+	// EXTERNAL PACKAGES - Third-party libraries
+	asciiart "github.com/romance-dev/ascii-art" // ASCII art banner
+	_ "github.com/romance-dev/ascii-art/fonts"  // Font for ASCII art
 )
 
+// =============================================================================
+// MAIN FUNCTION - The Starting Point
+// =============================================================================
+// This function runs when you start the application. It's the first thing that executes.
+// Think of it as the "main switch" that turns everything on.
+//
+// WHAT HAPPENS HERE (STEP BY STEP):
+// 1. Load all configuration settings
+// 2. Display the cool ASCII art banner
+// 3. Connect to PostgreSQL (main database)
+// 4. Set up Redis caching
+// 5. Auto-discover all database tables
+// 6. Connect to ClickHouse (search engine)
+// 7. Set up CDC (Change Data Capture) pipeline
+// 8. Set up authentication with JWT tokens
+// 9. Create all API routes
+// 10. Start the HTTP server
+// =============================================================================
 func main() {
-        cfg := config.LoadConfig()
-        ctx := context.Background()
+	// =============================================================================
+	// STEP 1: LOAD CONFIGURATION
+	// =============================================================================
+	// Load all settings from .env file and environment variables
+	// See internal/config/config.go for all the options
+	cfg := config.LoadConfig()
 
-        asciiart.NewFigure("L.S.D", "isometric1", true).Print()
-        log.Printf("🚀 L.S.D API Server Starting")
-        log.Println("═══════════════════════════════════════════════════════════")
+	// Create a background context (used for database operations)
+	ctx := context.Background()
 
-        pool, err := database.NewPool(ctx, cfg.DatabaseURL)
-        if err != nil {
-                log.Fatalf("Failed to connect to database: %v", err)
-        }
-        defer pool.Close()
-        log.Println("Database connected")
+	// =============================================================================
+	// STEP 2: DISPLAY STARTUP BANNER
+	// =============================================================================
+	// Show the cool ACID banner when starting
+	asciiart.NewFigure("ACID", "isometric1", true).Print()
+	log.Printf("🚀 ACID API Server Starting...")
+	log.Println("══════════════════════════════════════════════════════════════════")
 
-        redisCache := cache.NewRedisCache(
-                cfg.RedisAddr,
-                cfg.RedisPassword,
-                cfg.RedisDB,
-                5*time.Minute,
-        )
+	// =============================================================================
+	// STEP 3: CONNECT TO POSTGRESQL
+	// =============================================================================
+	// Connect to the main PostgreSQL database
+	// This is where all your data is stored
+	pool, err := database.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer pool.Close()
+	log.Println("✅ Database connected")
 
-        multiCache := cache.NewMultiLayerCache(redisCache, 30*time.Second)
-        log.Println("Multi-layer cache initialized")
+	// =============================================================================
+	// STEP 4: SET UP REDIS CACHING
+	// =============================================================================
+	// Set up Redis for caching (makes things faster)
+	// Redis stores temporary data to reduce database load
+	redisCache := cache.NewRedisCache(
+		cfg.RedisAddr,
+		cfg.RedisPassword,
+		cfg.RedisDB,
+		5*time.Minute, // Cache data for 5 minutes
+	)
 
-        registry := schema.NewSchemaRegistry(pool.Pool)
-        if err := registry.LoadSchema(ctx); err != nil {
-                log.Fatalf("Failed to load schema: %v", err)
-        }
-        log.Printf("Schema loaded: %d tables discovered", len(registry.GetAllTables()))
+	// Create multi-layer cache (with in-memory + Redis)
+	multiCache := cache.NewMultiLayerCache(redisCache, 30*time.Second)
+	log.Println("✅ Multi-layer cache initialized")
 
-        // ⭐ ClickHouse Connection Pool
-        chPool, err := clickhouse.NewConnectionPool(clickhouse.Config{
-                Addr:     cfg.ClickHouseAddr,
-                Database: cfg.ClickHouseDB,
-                Username: cfg.ClickHouseUser,
-                Password: cfg.ClickHousePassword,
-        }, 5)
+	// =============================================================================
+	// STEP 5: AUTO-DISCOVER DATABASE SCHEMA
+	// =============================================================================
+	// Automatically discover all tables in the database
+	// This is what makes ACID dynamic - it figures out your database structure!
+	registry := schema.NewSchemaRegistry(pool.Pool)
+	if err := registry.LoadSchema(ctx); err != nil {
+		log.Fatalf("Failed to load schema: %v", err)
+	}
+	log.Printf("✅ Schema loaded: %d tables discovered", len(registry.GetAllTables()))
 
-        if err != nil {
-                log.Printf("ClickHouse pool creation failed: %v", err)
-        }
+	// =============================================================================
+	// STEP 6: CONNECT TO CLICKHOUSE (SEARCH ENGINE)
+	// =============================================================================
+	// Connect to ClickHouse for fast full-text search
+	// ClickHouse is optimized for search queries
+	chPool, err := clickhouse.NewConnectionPool(clickhouse.Config{
+		Addr:     cfg.ClickHouseAddr,
+		Database: cfg.ClickHouseDB,
+		Username: cfg.ClickHouseUser,
+		Password: cfg.ClickHousePassword,
+	}, 5) // 5 connection pool size
 
-        var chSearch *clickhouse.SearchRepository
-        if chPool != nil && chPool.IsAvailable() {
-                chSearch = clickhouse.NewSearchRepository(chPool, registry)
-                log.Println("✅ ClickHouse search repository initialized with connection pool (5 connections)")
-        } else {
-                log.Println("⚠️  ClickHouse not available, search will use PostgreSQL only")
-        }
+	if err != nil {
+		log.Printf("⚠️  ClickHouse pool creation failed: %v", err)
+	}
 
-        dynamicRepo := database.NewDynamicRepository(pool.Pool, registry)
-        dynamicHandler := handlers.NewDynamicHandler(
-                dynamicRepo,
-                registry,
-                multiCache,
-                chSearch,
-                50, 20,
-                120*time.Second,
-        )
+	var chSearch *clickhouse.SearchRepository
+	if chPool != nil && chPool.IsAvailable() {
+		chSearch = clickhouse.NewSearchRepository(chPool, registry)
+		log.Println("✅ ClickHouse search repository initialized (5 connections)")
+	} else {
+		log.Println("⚠️  ClickHouse not available, search uses PostgreSQL")
+	}
 
-        // Initialize CDC Manager
-        var cdcManager *clickhouse.CDCManager
-        if chPool != nil && chPool.IsAvailable() && cfg.EnableCDC {
-                cdcConfig := clickhouse.CDCConfig{
-                        BatchSize:       10000,
-                        SyncInterval:    30 * time.Second,
-                        ParallelWorkers: 5,
-                        ChunkSize:       100000,
-                }
+	// =============================================================================
+	// STEP 7: CREATE DYNAMIC REQUEST HANDLER
+	// =============================================================================
+	// This handler automatically works with ANY table in your database
+	// No code changes needed when you add new tables!
+	dynamicRepo := database.NewDynamicRepository(pool.Pool, registry)
+	dynamicHandler := handlers.NewDynamicHandler(
+		dynamicRepo,
+		registry,
+		multiCache,
+		chSearch,
+		50,   // max page size (max records per page)
+		20,   // default page size
+		120*time.Second, // request timeout
+	)
 
-                cdcManager = clickhouse.NewCDCManager(pool.Pool, chSearch, registry, cdcConfig)
-                dynamicHandler.SetCDCManager(cdcManager)
-                cdcManager.Start()
-                log.Println("🚀 CDC Manager started with auto-discovery")
-        }
+	// =============================================================================
+	// STEP 8: SET UP CDC (CHANGE DATA CAPITUDE)
+	// =============================================================================
+	// CDC syncs data from PostgreSQL to ClickHouse in real-time
+	// This keeps your search index up to date automatically
+	var cdcManager *clickhouse.CDCManager
+	if chPool != nil && chPool.IsAvailable() && cfg.EnableCDC {
+		cdcConfig := clickhouse.CDCConfig{
+			BatchSize:       10000,    // Process 10k records at a time
+			SyncInterval:    30 * time.Second, // Check for changes every 30s
+			ParallelWorkers: 5,        // 5 workers for parallel processing
+			ChunkSize:       100000,   // Process 100k records per chunk
+		}
 
-        // Initialize Pipeline Processor
-        pipelineProcessor := pipeline.NewPipelineProcessor(pool.Pool, "./ErrorFiles")
+		cdcManager = clickhouse.NewCDCManager(pool.Pool, chSearch, registry, cdcConfig)
+		dynamicHandler.SetCDCManager(cdcManager)
+		cdcManager.Start()
+		log.Println("✅ CDC Manager started with auto-discovery")
+	}
 
-        if cdcManager != nil {
-                pipelineProcessor.SetCDCTrigger(func(tableName string) error {
-                        log.Printf("🔄 Pipeline completed for table: %s, triggering CDC sync...", tableName)
-                        if err := cdcManager.TriggerTableSync(tableName); err != nil {
-                                log.Printf("⚠️  CDC sync failed for %s: %v", tableName, err)
-                                return err
-                        }
-                        log.Printf("✅ CDC sync completed for table: %s", tableName)
-                        return nil
-                })
-                log.Println("🔗 Pipeline-to-CDC integration enabled")
-        }
+	// =============================================================================
+	// STEP 9: SET UP DATA PIPELINE PROCESSOR
+	// =============================================================================
+	// Process data from files (CSV, JSON, etc.)
+	pipelineProcessor := pipeline.NewPipelineProcessor(pool.Pool, "./ErrorFiles")
 
-        pipelineHandler := handlers.NewPipelineHandler(pipelineProcessor)
+	// Connect pipeline to CDC (triggers sync after processing)
+	if cdcManager != nil {
+		pipelineProcessor.SetCDCTrigger(func(tableName string) error {
+			log.Printf("🔄 Pipeline completed for table: %s, triggering CDC sync...", tableName)
+			if err := cdcManager.TriggerTableSync(tableName); err != nil {
+				log.Printf("⚠️  CDC sync failed for %s: %v", tableName, err)
+				return err
+			}
+			log.Printf("✅ CDC sync completed for table: %s", tableName)
+			return nil
+		})
+		log.Println("✅ Pipeline-to-CDC integration enabled")
+	}
 
-        // ═══════════════════════════════════════════════════════════
-        // 🔐 AUTHENTICATION SETUP (Updated with JWT)
-        // ═══════════════════════════════════════════════════════════
+	pipelineHandler := handlers.NewPipelineHandler(pipelineProcessor)
 
-        jwtSecret := cfg.JWTSecret
-        if jwtSecret == "" {
-                jwtSecret = "lsd-jwt-secret-key-2026-change-in-production"
-        }
+	// =============================================================================
+	// STEP 10: SET UP AUTHENTICATION (JWT TOKENS)
+	// =============================================================================
+	// JWT (JSON Web Tokens) is how we secure the API
+	// Tokens verify identity without requiring password every time
+	jwtSecret := cfg.JWTSecret
+	if jwtSecret == "" {
+		// Default secret for development only! CHANGE IN PRODUCTION!
+		jwtSecret = "acid-jwt-secret-key-2026-change-in-production"
+	}
 
-        authService := auth.NewAuthService(jwtSecret)
-        authHandler := handlers.NewAuthHandler(pool.Pool, authService)
-        authMiddleware := middleware.NewAuthMiddleware(authService, pool.Pool)
+	authService := auth.NewAuthService(jwtSecret)
+	authHandler := handlers.NewAuthHandler(pool.Pool, authService)
+	authMiddleware := middleware.NewAuthMiddleware(authService, pool.Pool)
 
-        // ═══════════════════════════════════════════════════════════
-        // 🌐 ROUTER SETUP
-        // ═══════════════════════════════════════════════════════════
+	// =============================================================================
+	// STEP 11: CREATE HTTP ROUTER (API ROUTES)
+	// =============================================================================
+	// The router decides which function handles which URL
+	// Think of it as a phone switchboard - directing calls to the right person
+	mux := http.NewServeMux()
 
-        mux := http.NewServeMux()
+	// ============================================================================
+	// PUBLIC ROUTES - Anyone can access these (no login required)
+	// ============================================================================
 
-        // ═══════════════════════════════════════════════════════════
-        // 🔓 PUBLIC ROUTES
-        // ═══════════════════════════════════════════════════════════
-
-        // Auth Pages
+// Web Pages (HTML files served to browsers)
         mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
                 http.ServeFile(w, r, "./web/login.html")
         })
@@ -152,16 +263,21 @@ func main() {
                 http.ServeFile(w, r, "./web/dashboard.html")
         })
 
-        // Docs Page (Scalar API Reference)
-        mux.HandleFunc("GET /docs", func(w http.ResponseWriter, r *http.Request) {
-                http.ServeFile(w, r, "./web/docs.html")
+        // ACID Admin Panel - Complete Management UI
+        mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) {
+                http.ServeFile(w, r, "./web/admin.html")
         })
 
-        // Auth API Endpoints
-        mux.HandleFunc("POST /api/auth/register", authHandler.Register)
-        mux.HandleFunc("POST /api/auth/login", authHandler.Login)
-        mux.HandleFunc("POST /api/auth/logout", authHandler.Logout)
-        mux.HandleFunc("GET /api/auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.GetMe)).ServeHTTP)
+        // API Documentation page
+	mux.HandleFunc("GET /docs", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/docs.html")
+	})
+
+	// Authentication API endpoints (login, register, etc.)
+	mux.HandleFunc("POST /api/auth/register", authHandler.Register)
+	mux.HandleFunc("POST /api/auth/login", authHandler.Login)
+	mux.HandleFunc("POST /api/auth/logout", authHandler.Logout)
+	mux.HandleFunc("GET /api/auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.GetMe)).ServeHTTP)
 
         // API Keys (Protected)
         mux.HandleFunc("GET /api/auth/api-keys", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.ListAPIKeys)).ServeHTTP)
@@ -207,6 +323,7 @@ func main() {
 
         // Search Endpoints
         mux.Handle("GET /api/search/", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.SearchOptimized)))
+        mux.Handle("GET /api/search/duplicates", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.SearchGlobalWithDuplicates)))
 
         // Pipeline Endpoints
         mux.Handle("POST /api/pipeline/start", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.StartJob)))
@@ -217,6 +334,26 @@ func main() {
 
         // CDC Status
         mux.Handle("GET /api/cdc/status", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetCDCStatus)))
+
+        // ═══════════════════════════════════════════════════════════
+        // 📊 REPORT & MULTI-DB ENDPOINTS
+        // ═══════════════════════════════════════════════════════════
+
+        multiDBManager := database.NewMultiDBManager()
+        if err := multiDBManager.AddDatabase(ctx, "primary", cfg.DatabaseURL); err != nil {
+                log.Printf("⚠️  Primary DB config warning: %v", err)
+        }
+        multiDBManager.SetPrimaryDB("primary")
+
+        reportHandler := handlers.NewReportHandler(dynamicRepo, registry, multiDBManager)
+
+        mux.Handle("GET /api/databases", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.ListDatabases)))
+        mux.Handle("GET /api/reports", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GenerateReport)))
+        mux.Handle("GET /api/system-report", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GenerateSystemReport)))
+        mux.Handle("GET /api/crossref", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GetCrossRef)))
+
+        log.Println("✅ Multi-DB manager initialized with 10 database support")
+        log.Println("📊 Report generation endpoints enabled")
 
         // ═══════════════════════════════════════════════════════════
         // 🛡️ GLOBAL MIDDLEWARE
