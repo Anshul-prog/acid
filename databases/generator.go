@@ -15,31 +15,30 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/xuri/nfp/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	NumDatabases    = 10
-	NumTablesPerDB  = 1000
-	UsersPerTable   = 50
+	NumDatabases   = 10
+	NumTablesPerDB = 1000
+	UsersPerTable  = 50
 	Workers        = 10
 )
 
 var (
 	firstNames = []string{"James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda", "William", "Elizabeth", "David", "Barbara", "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Charles", "Karen", "Christopher", "Nancy", "Daniel", "Lisa", "Matthew", "Betty", "Anthony", "Margaret", "Mark", "Sandra", "Donald", "Ashley", "Steven", "Kimberly", "Paul", "Emily", "Andrew", "Donna", "Joshua", "Michelle", "Kenneth", "Dorothy", "Kevin", "Carol", "Brian", "Amanda", "George", "Melissa", "Timothy", "Deborah"}
 	lastNames  = []string{"Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson", "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores", "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts"}
-	domains   = []string{"gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "proton.me", "icloud.com"}
-	statuses  = []string{"active", "inactive", "pending", "suspended", "verified"}
-	countries = []string{"US", "UK", "CA", "AU", "DE", "FR", "JP", "IN", "BR", "MX"}
-	cities    = []string{"New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose", "Austin", "Jacksonville", "Fort Worth", "Columbus", "Charlotte", "Seattle", "Denver", "Boston", "Nashville", "Portland"}
+	domains    = []string{"gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "proton.me", "icloud.com"}
+	statuses   = []string{"active", "inactive", "pending", "suspended", "verified"}
+	countries  = []string{"US", "UK", "CA", "AU", "DE", "FR", "JP", "IN", "BR", "MX"}
+	cities     = []string{"New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose", "Austin", "Jacksonville", "Fort Worth", "Columbus", "Charlotte", "Seattle", "Denver", "Boston", "Nashville", "Portland"}
 	domains2   = []string{"finance", "health", "education", "technology", "retail", "manufacturing", "media", "transport", "energy", "construction"}
-	jobTitles = []string{"Manager", "Developer", "Engineer", "Director", "Analyst", "Consultant", "Coordinator", "Administrator", "Specialist", "Executive"}
+	jobTitles  = []string{"Manager", "Developer", "Engineer", "Director", "Analyst", "Consultant", "Coordinator", "Administrator", "Specialist", "Executive"}
 )
 
 type TableSchema struct {
-	Name         string
-	Columns      []ColumnDef
+	Name        string
+	Columns     []ColumnDef
 	PrimaryKeys []string
 }
 
@@ -50,29 +49,29 @@ type ColumnDef struct {
 }
 
 type GeneratedData struct {
-	Database    string
-	Table      string
-	RecordID   int
-	Users      []UserRecord
+	Database string
+	Table    string
+	RecordID int
+	Users    []UserRecord
 }
 
 type UserRecord struct {
-	ID           int64     `json:"id"`
-	UUID         string    `json:"uuid"`
-	Email        string    `json:"email"`
-	FirstName   string    `json:"first_name"`
-	LastName    string    `json:"last_name"`
-	Phone       string    `json:"phone"`
-	Status      string    `json:"status"`
-	Country     string    `json:"country"`
-	City        string    `json:"city"`
-	Domain      string    `json:"domain"`
-	JobTitle    string    `json:"job_title"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	Tags        []string  `json:"tags,omitempty"`
-	DuplicateDB string   `json:"duplicate_db,omitempty"`
-	DuplicateTable string `json:"duplicate_table,omitempty"`
+	ID             int64     `json:"id"`
+	UUID           string    `json:"uuid"`
+	Email          string    `json:"email"`
+	FirstName      string    `json:"first_name"`
+	LastName       string    `json:"last_name"`
+	Phone          string    `json:"phone"`
+	Status         string    `json:"status"`
+	Country        string    `json:"country"`
+	City           string    `json:"city"`
+	Domain         string    `json:"domain"`
+	JobTitle       string    `json:"job_title"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	Tags           []string  `json:"tags,omitempty"`
+	DuplicateDB    string    `json:"duplicate_db,omitempty"`
+	DuplicateTable string    `json:"duplicate_table,omitempty"`
 }
 
 func main() {
@@ -225,29 +224,29 @@ func generateTableData(ctx context.Context, pool *pgxpool.Pool, dbName, tableNam
 	duplicateChance := 0.15
 
 	for i := 0; i < numRecords; i++ {
-		firstName := firstNames[randInt(len(firstNames))]
-		lastName := lastNames[randInt(len(lastNames))]
+		firstName := firstNames[randIntMax(len(firstNames))]
+		lastName := lastNames[randIntMax(len(lastNames))]
 		email := generateEmail(firstName, lastName, dbIdx, tableIdx, i)
 
 		record := UserRecord{
-			ID:         int64(i + 1),
-			UUID:       generateUUID(),
-			Email:      email,
+			ID:        int64(i + 1),
+			UUID:      generateUUID(),
+			Email:     email,
 			FirstName: firstName,
 			LastName:  lastName,
 			Phone:     generatePhone(),
-			Status:    statuses[randInt(len(statuses))],
-			Country:   countries[randInt(len(countries))],
-			City:      cities[randInt(len(cities))],
-			Domain:    domains2[randInt(len(domains2))],
-			JobTitle:  jobTitles[randInt(len(jobTitles))],
-			CreatedAt: time.Now().Add(-time.Duration(randInt(365*24)) * time.Hour),
+			Status:    statuses[randIntMax(len(statuses))],
+			Country:   countries[randIntMax(len(countries))],
+			City:      cities[randIntMax(len(cities))],
+			Domain:    domains2[randIntMax(len(domains2))],
+			JobTitle:  jobTitles[randIntMax(len(jobTitles))],
+			CreatedAt: time.Now().Add(-time.Duration(randIntMax(365*24)) * time.Hour),
 			UpdatedAt: time.Now(),
 		}
 
 		if randFloat() < duplicateChance {
-			refDB := randInt(NumDatabases) + 1
-			refTbl := randInt(NumTablesPerDB)
+			refDB := randIntMax(NumDatabases) + 1
+			refTbl := randIntMax(NumTablesPerDB)
 			record.Tags = []string{fmt.Sprintf("duplicate_ref:lsd_db_%02d.users_%04d", refDB, refTbl)}
 			record.DuplicateDB = fmt.Sprintf("lsd_db_%02d", refDB)
 			record.DuplicateTable = fmt.Sprintf("users_%04d", refTbl)
@@ -276,7 +275,7 @@ func generateTableData(ctx context.Context, pool *pgxpool.Pool, dbName, tableNam
 }
 
 func generateEmail(firstName, lastName string, dbIdx, tableIdx, recordIdx int) string {
-	domain := domains[randInt(len(domains))]
+	domain := domains[randIntMax(len(domains))]
 	unique := fmt.Sprintf("%s%d.%s%d", firstName[:1], recordIdx, lastName[:1], dbIdx)
 	return strings.ToLower(unique) + "@" + domain
 }
@@ -288,18 +287,18 @@ func generateUUID() string {
 }
 
 func generatePhone() string {
-	return fmt.Sprintf("+1-%d%03d-%03d-%04d",
-		randInt(200, 999),
-		randInt(100, 999),
-		randInt(1000, 9999))
+	return fmt.Sprintf("+1-%03d-%03d-%04d",
+		randRange(200, 999),
+		randRange(100, 999),
+		randRange(1000, 9999))
 }
 
-func randInt(max int) int {
+func randIntMax(max int) int {
 	n, _ := rand.Int(rand.Reader, big.NewInt(int64(max)))
 	return int(n.Int64())
 }
 
-func randInt(min, max int) int {
+func randRange(min, max int) int {
 	n, _ := rand.Int(rand.Reader, big.NewInt(int64(max-min)))
 	return min + int(n.Int64())
 }
@@ -339,7 +338,6 @@ func generateReportCSV(ctx context.Context, pool *pgxpool.Pool, path string) err
 
 	writer := csv.NewWriter(file)
 	writer.Comma = ','
-	writer.UseTrailingSlash = false
 
 	headers := []string{"database", "table", "record_id", "email", "first_name", "last_name", "status", "country", "city", "tags", "duplicate_ref"}
 	writer.Write(headers)
