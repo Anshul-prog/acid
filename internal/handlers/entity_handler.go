@@ -29,9 +29,9 @@ import (
 	"strings"
 	"time"
 
-	"highperf-api/internal/database"
-	"highperf-api/internal/dbsearch"
-	"highperf-api/internal/middleware"
+	"acid/internal/database"
+	"acid/internal/dbsearch"
+	"acid/internal/middleware"
 )
 
 // EntityHandler holds all dependencies for entity / case endpoints.

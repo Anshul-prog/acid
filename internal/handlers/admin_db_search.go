@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"highperf-api/internal/database"
-	"highperf-api/internal/dbsearch"
-	"highperf-api/internal/middleware"
+	"acid/internal/database"
+	"acid/internal/dbsearch"
+	"acid/internal/middleware"
 )
 
 // AdminSearchHandler holds the dependencies for the DB-search endpoints.

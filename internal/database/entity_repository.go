@@ -25,7 +25,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"highperf-api/internal/dbsearch"
+	"acid/internal/dbsearch"
 )
 
 // ─── Data-transfer objects ────────────────────────────────────────────────────

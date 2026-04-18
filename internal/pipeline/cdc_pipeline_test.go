@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"highperf-api/internal/schema"
+	"acid/internal/schema"
 )
 
 func TestPipelineStartAndStop(t *testing.T) {
