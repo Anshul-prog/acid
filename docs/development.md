@@ -31,11 +31,11 @@ Ensure you have these tools installed:
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/L.S.D.git
-cd L.S.D
+git clone https://github.com/vinayyadav36/acid.git
+cd acid
 
 # Add upstream remote
-git remote add upstream https://github.com/Daveshvats/L.S.D.git
+git remote add upstream https://github.com/vinayyadav36/acid.git
 
 # Install dependencies
 go mod download

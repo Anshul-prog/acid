@@ -46,8 +46,8 @@ This guide walks you through installing and configuring L.S.D from scratch. Whet
 
 ```bash
 # Clone the repository
-git clone https://github.com/Daveshvats/L.S.D.git
-cd L.S.D
+git clone https://github.com/vinayyadav36/acid.git
+cd acid
 
 # Download dependencies
 go mod download
@@ -340,7 +340,7 @@ sudo systemctl status lsd-api
 
 ```bash
 # Check API health
-curl http://localhost:5000/api/health
+curl http://localhost:8080/api/health
 ```
 
 Expected response:
@@ -358,30 +358,30 @@ Expected response:
 ### List Discovered Tables
 
 ```bash
-curl http://localhost:5000/api/tables
+curl http://localhost:8080/api/tables
 ```
 
 ### Get Table Schema
 
 ```bash
-curl http://localhost:5000/api/tables/users/schema
+curl http://localhost:8080/api/tables/users/schema
 ```
 
 ### Test Pagination
 
 ```bash
-curl "http://localhost:5000/api/tables/users/records?limit=5"
+curl "http://localhost:8080/api/tables/users/records?limit=5"
 ```
 
 ### Test Search
 
 ```bash
-curl "http://localhost:5000/api/tables/users/search?q=john"
+curl "http://localhost:8080/api/tables/users/search?q=john"
 ```
 
 ### Access Web Dashboard
 
-Open `http://localhost:5000` in your browser to access the built-in dashboard.
+Open `http://localhost:8080` in your browser to access the built-in dashboard.
 
 ## Troubleshooting
 
@@ -474,7 +474,7 @@ go run ./cmd/api
 ### Getting Help
 
 1. **Check logs**: Application logs provide detailed error messages
-2. **GitHub Issues**: [github.com/Daveshvats/L.S.D/issues](https://github.com/Daveshvats/L.S.D/issues)
+2. **GitHub Issues**: [github.com/vinayyadav36/acid/issues](https://github.com/vinayyadav36/acid/issues)
 3. **Documentation**: Review other docs in the `/docs` folder
 
 ---

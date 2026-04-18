@@ -559,9 +559,14 @@ func (h *DynamicHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 		clickhouseAvailable = h.chSearch.IsAvailable()
 	}
 
+	// #layer-identity: lets load-balancers, dashboards, and monitoring tools
+	// easily distinguish the API backend layer from static / frontend assets.
+	w.Header().Set("X-Layer", "backend")
+
 	h.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status":       "UP",
 		"service":      "L.S.D",
+		"layer":        "backend",
 		"tables_count": len(tables),
 		"clickhouse":   clickhouseAvailable,
 		"redis":        h.cache.IsAvailable(),
@@ -618,6 +623,7 @@ func (h *DynamicHandler) parseQueryParams(r *http.Request, tableName string) sch
 
 func (h *DynamicHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Layer", "backend")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
 }
@@ -625,6 +631,7 @@ func (h *DynamicHandler) writeJSON(w http.ResponseWriter, status int, data inter
 func (h *DynamicHandler) writeJSONCompressed(w http.ResponseWriter, r *http.Request, status int, data interface{}) {
 	// 1. Always set Content-Type
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Layer", "backend")
 
 	// 2. Check if the client supports Gzip (Browsers always do)
 	// We use 'strings.Contains' to be safe against varied header formats

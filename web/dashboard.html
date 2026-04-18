@@ -380,6 +380,54 @@
                 justify-content: flex-end;
             }
         }
+        /* ── Intelligence Console ─────────────────────────────────────── */
+        .intel-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;}
+        .intel-tab{background:var(--bg-elevated);border:1px solid var(--border);
+            border-radius:var(--radius-md);padding:.5rem 1rem;font-size:.9rem;
+            cursor:pointer;color:var(--text-secondary);transition:all .2s;}
+        .intel-tab:hover{border-color:var(--border-hover);color:var(--text-primary);}
+        .intel-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+        .intel-panel{margin-bottom:0;}
+        /* result tables inside panels */
+        .intel-table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:.75rem;}
+        .intel-table th{background:var(--bg-elevated);padding:.5rem .75rem;
+            text-align:left;font-weight:600;border-bottom:1px solid var(--border);
+            white-space:nowrap;color:var(--text-secondary);}
+        .intel-table td{padding:.45rem .75rem;border-bottom:1px solid var(--border);
+            color:var(--text-primary);word-break:break-word;max-width:260px;}
+        .intel-table tr:hover td{background:var(--accent-light);}
+        .hit-badge{display:inline-block;padding:.1rem .45rem;border-radius:999px;
+            font-size:.72rem;font-weight:600;background:var(--primary-light);
+            color:var(--primary);margin:0 .15rem;}
+        .qtype-pill{display:inline-block;padding:.15rem .5rem;border-radius:999px;
+            font-size:.72rem;font-weight:700;background:rgba(0,217,255,.15);
+            color:#00d9ff;border:1px solid rgba(0,217,255,.3);}
+        mark.hl{background:#00d9ff22;color:inherit;border-radius:2px;padding:0 1px;}
+        /* Case card */
+        .case-card{background:var(--bg-elevated);border:1px solid var(--border);
+            border-radius:var(--radius-md);padding:1rem;margin-bottom:.75rem;
+            display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;}
+        .case-card:hover{border-color:var(--border-hover);}
+        .status-badge{display:inline-block;padding:.2rem .6rem;border-radius:999px;
+            font-size:.75rem;font-weight:600;}
+        .status-open{background:rgba(16,185,129,.15);color:#10b981;}
+        .status-closed{background:rgba(156,163,175,.15);color:#9ca3af;}
+        .status-under_investigation{background:rgba(245,158,11,.15);color:#f59e0b;}
+        /* Entity profile sections */
+        .profile-section{margin-bottom:1.5rem;}
+        .profile-section h4{font-size:.95rem;font-weight:700;
+            color:var(--text-secondary);margin-bottom:.6rem;
+            text-transform:uppercase;letter-spacing:.05em;}
+        .bio-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.5rem;}
+        .bio-item{background:var(--accent-light);border-radius:var(--radius-sm);padding:.5rem .75rem;}
+        .bio-label{font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;}
+        .bio-value{font-size:.9rem;font-weight:600;color:var(--text-primary);margin-top:.15rem;word-break:break-all;}
+        /* Session list */
+        .session-row{display:flex;justify-content:space-between;align-items:center;
+            padding:.6rem 0;border-bottom:1px solid var(--border);gap:.5rem;flex-wrap:wrap;}
+        .session-dot{width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0;}
+        .session-dot.ended{background:#6b7280;}
+        }
     </style>
 </head>
 <body>
@@ -394,6 +442,9 @@
                     <span class="logo-text">Dashboard</span>
                     <span class="logo-subtitle">API Management</span>
                 </div>
+                <span class="role-badge role-badge-frontend" title="UI served by Go backend from web/">
+                    <span class="role-badge-dot"></span>Frontend
+                </span>
             </a>
             <div class="nav-links">
                 <a href="/docs">📚 Docs</a>
@@ -466,8 +517,121 @@
                     <!-- API keys loaded here -->
                 </div>
             </div>
-        </div>
+        </div><!-- /.dashboard-grid -->
+
+        <!-- ═══════════════════════════════════════════════════════════
+             🔍 INTELLIGENCE CONSOLE  (appended below existing grid)
+             All sections collapse/expand via the tab bar.
+             JS is in app.js — no inline scripts.
+             ═══════════════════════════════════════════════════════════ -->
+        <div id="intel-console" style="margin-top:2rem;">
+
+            <!-- Tab bar -->
+            <div class="intel-tabs" id="intel-tab-bar">
+                <button class="intel-tab active" onclick="intelTab('db-search')">🗄️ DB Search</button>
+                <button class="intel-tab" onclick="intelTab('smart-search')">🧠 Smart Search</button>
+                <button class="intel-tab" onclick="intelTab('cases')">📁 Cases</button>
+                <button class="intel-tab" onclick="intelTab('sessions')">⏱️ Work Sessions</button>
+            </div>
+
+            <!-- ── DB Search Console ───────────────────────────────── -->
+            <div id="panel-db-search" class="intel-panel active card">
+                <div class="card-header">
+                    <div class="card-title"><div class="card-icon">🗄️</div> Database Search Console</div>
+                    <div style="display:flex;gap:.5rem;align-items:center;">
+                        <select id="db-scope" class="form-input" style="width:140px;padding:.4rem .6rem;font-size:.85rem;">
+                            <option value="database">Full DB Scan</option>
+                            <option value="column">Column Scan</option>
+                            <option value="row">Single Table</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="dbSearchRefresh()" title="Reload schema">↺</button>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
+                    <input id="db-source-input" class="form-input" style="width:140px" placeholder="Data source ID">
+                    <input id="db-schema-input" class="form-input" style="width:130px" placeholder="Schema (row only)">
+                    <input id="db-table-input"  class="form-input" style="width:150px" placeholder="Table  (row only)">
+                </div>
+
+                <div style="display:flex;gap:.75rem;margin-bottom:1rem;">
+                    <input id="db-search-q" class="form-input" placeholder="Search term — keyword / Aadhaar / PAN / phone / email …" style="flex:1">
+                    <button class="btn btn-primary" onclick="runDBSearch()">Search</button>
+                </div>
+
+                <div id="db-search-status" style="font-size:.8rem;color:var(--text-muted);margin-bottom:.5rem;"></div>
+                <div id="db-search-results"></div>
+            </div>
+
+            <!-- ── Smart Search ────────────────────────────────────── -->
+            <div id="panel-smart-search" class="intel-panel card" style="display:none;">
+                <div class="card-header">
+                    <div class="card-title"><div class="card-icon">🧠</div> Smart Intelligence Search</div>
+                </div>
+                <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem;">
+                    Auto-detects Aadhaar, PAN, Passport, Driving Licence, Phone, Email, or Bank Account
+                    and builds the optimal search plan.
+                </p>
+                <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
+                    <input id="smart-q" class="form-input" placeholder="Type anything — number, name, email, ID …" style="flex:1">
+                    <select id="smart-scope" class="form-input" style="width:160px;padding:.4rem .6rem;font-size:.85rem;">
+                        <option value="database">All Databases</option>
+                        <option value="column">Column Scan</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="runSmartSearch()">Search</button>
+                </div>
+                <div id="smart-search-status" style="font-size:.8rem;color:var(--text-muted);margin-bottom:.5rem;"></div>
+                <div id="smart-search-results"></div>
+            </div>
+
+            <!-- ── Cases ──────────────────────────────────────────── -->
+            <div id="panel-cases" class="intel-panel card" style="display:none;">
+                <div class="card-header">
+                    <div class="card-title"><div class="card-icon">📁</div> Cases</div>
+                    <div style="display:flex;gap:.5rem;">
+                        <input id="case-q" class="form-input" style="width:200px" placeholder="Search cases …">
+                        <select id="case-status" class="form-input" style="width:140px;padding:.4rem .6rem;font-size:.85rem;">
+                            <option value="">All Statuses</option>
+                            <option value="open">Open</option>
+                            <option value="under_investigation">Under Investigation</option>
+                            <option value="closed">Closed</option>
+                            <option value="chargesheet_filed">Chargesheet Filed</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm" onclick="loadCases()">Load</button>
+                    </div>
+                </div>
+                <div id="cases-list"></div>
+            </div>
+
+            <!-- ── Work Sessions ───────────────────────────────────── -->
+            <div id="panel-sessions" class="intel-panel card" style="display:none;">
+                <div class="card-header">
+                    <div class="card-title"><div class="card-icon">⏱️</div> Work Sessions</div>
+                    <button class="btn btn-primary btn-sm" onclick="startWorkSession()">+ Start Session</button>
+                </div>
+                <div id="sessions-list"></div>
+            </div>
+
+        </div><!-- /#intel-console -->
+
     </main>
+
+    <!-- Entity Profile Modal -->
+    <div class="modal-overlay" id="entity-modal" style="display:none;" onclick="if(event.target===this)closeEntityModal()">
+        <div class="modal" style="max-width:860px;width:95vw;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="entity-modal-name">Entity Profile</h3>
+                <div style="display:flex;gap:.5rem;margin-top:.5rem;">
+                    <button class="btn btn-secondary btn-sm" onclick="exportEntity('json')">⬇ JSON</button>
+                    <button class="btn btn-secondary btn-sm" onclick="exportEntity('csv')">⬇ CSV</button>
+                    <button class="btn btn-secondary btn-sm" onclick="closeEntityModal()">✕ Close</button>
+                </div>
+            </div>
+            <div class="modal-body" id="entity-modal-body" style="padding:0 1.5rem 1.5rem;">
+                Loading …
+            </div>
+        </div>
+    </div>
 
     <!-- Create API Key Modal -->
     <div class="modal-overlay" id="create-modal">

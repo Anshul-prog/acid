@@ -22,6 +22,7 @@ type Config struct {
 	ClickHousePassword string
 	ClickHouseDSN      string
 	EnableCDC          bool
+	EnableDBSearch     bool
 	JWTSecret          string
 }
 
@@ -44,14 +45,11 @@ func LoadConfig() *Config {
 		ClickHouseUser:     getEnv("CLICKHOUSE_USER", "default"),
 		ClickHousePassword: getEnv("CLICKHOUSE_PASSWORD", ""),
 		EnableCDC:          getEnv("ENABLE_CDC", "true") == "true",
+		EnableDBSearch:     getEnv("ENABLE_DB_SEARCH", "true") == "true",
 		JWTSecret:          getEnv("JWT_SECRET", "acid-jwt-secret-key-change-in-production"),
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// ⭐ OPTIMIZATION: Build DSN with Async Inserts
-	// async_insert=1: Batches data in RAM before writing to disk
-	// wait_for_async_insert=0: Don't wait for disk, return immediately (Fastest CDC)
-	// ═══════════════════════════════════════════════════════════
+	// ClickHouse DSN with async inserts for faster CDC
 	cfg.ClickHouseDSN = fmt.Sprintf(
 		"tcp://%s?database=%s&username=%s&password=%s&async_insert=1&wait_for_async_insert=1",
 		addr,

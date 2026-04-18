@@ -332,17 +332,17 @@ If search is slow without ClickHouse:
 
 ```bash
 # Register a user
-curl -X POST http://localhost:5000/api/auth/register \
+curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"app@example.com","username":"myapp","password":"secure123"}'
 
 # Login to get JWT
-curl -X POST http://localhost:5000/api/auth/login \
+curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"app@example.com","password":"secure123"}'
 
 # Create API key (with JWT)
-curl -X POST http://localhost:5000/api/api-keys \
+curl -X POST http://localhost:8080/api/auth/api-keys \
   -H "Authorization: Bearer YOUR_JWT" \
   -H "Content-Type: application/json" \
   -d '{"name":"My App Key","scopes":["read","search"]}'
@@ -524,12 +524,12 @@ For a medium-scale production deployment:
 
 **Check CDC status:**
 ```bash
-curl http://localhost:5000/api/cdc/status
+curl http://localhost:8080/api/cdc/status
 ```
 
 ### How do I report a bug?
 
-1. **Check existing issues**: [GitHub Issues](https://github.com/Daveshvats/L.S.D/issues)
+1. **Check existing issues**: [GitHub Issues](https://github.com/vinayyadav36/acid/issues)
 2. **Gather information**:
    - Go version: `go version`
    - PostgreSQL version: `psql --version`
@@ -546,5 +546,5 @@ curl http://localhost:5000/api/cdc/status
 **Still have questions?**
 
 - 📖 Read the [full documentation](architecture.md)
-- 💬 Ask on [GitHub Discussions](https://github.com/Daveshvats/L.S.D/discussions)
-- 🐛 Report issues on [GitHub Issues](https://github.com/Daveshvats/L.S.D/issues)
+- 💬 Ask on [GitHub Discussions](https://github.com/vinayyadav36/acid/discussions)
+- 🐛 Report issues on [GitHub Issues](https://github.com/vinayyadav36/acid/issues)

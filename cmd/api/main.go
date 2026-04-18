@@ -3,45 +3,21 @@
 // =============================================================================
 // Main entry point for the ACID API Server
 //
-// WHAT THIS FILE DOES:
-// This is where the application starts (entry point). Think of it as the "main door"
-// where everything begins. It's like starting a car - this is the ignition.
+// This file:
+// 1. Loads configuration from .env file
+// 2. Connects to PostgreSQL database
+// 3. Sets up Redis caching
+// 4. Discovers database tables automatically
+// 5. Connects to ClickHouse for fast search
+// 6. Initializes CDC data sync pipeline
+// 7. Sets up authentication with JWT
+// 8. Creates all API routes/endpoints
+// 9. Starts the web server
 //
-// HOW IT WORKS (SIMPLE EXPLANATION):
-// 1. Load configuration from .env file
-// 2. Connect to PostgreSQL database
-// 3. Set up Redis caching
-// 4. Discover database tables automatically
-// 5. Set up ClickHouse for fast search
-// 6. Initialize security (JWT tokens)
-// 7. Create all the API routes/endpoints
-// 8. Start the web server
-//
-// FOR DEVELOPERS: Don't modify this unless you need to add new features!
+// DO NOT MODIFY unless adding new features!
 // =============================================================================
 package main
 
-// =============================================================================
-// IMPORT PACKAGES - Bringing in external tools we need
-// =============================================================================
-// These are like bringing different specialists into your team:
-// - context: For handling timeouts and cancellations
-// - fmt: For printing formatted text
-// - log: For logging/debugging
-// - net/http: For creating the web server
-// - os/signal: For handling system signals (Ctrl+C)
-// - time: For time-related functions
-// - config: Our own configuration module (see internal/config/)
-// - database: Our own database module (see internal/database/)
-// - handlers: Our own request handlers (see internal/handlers/)
-// - middleware: Security and rate limiting (see internal/middleware/)
-// - pipeline: Data processing pipeline
-// - schema: Database schema discovery
-// - auth: Authentication service
-// - cache: Redis caching layer
-// - clickhouse: Fast search database
-// - asciiart: For displaying the cool banner on startup
-// =============================================================================
 import (
 	"context"
 	"fmt"
@@ -52,64 +28,39 @@ import (
 	"syscall"
 	"time"
 
-	// INTERNAL PACKAGES - Our own code modules (see internal/ folder)
-	"acid/internal/auth"         // Authentication & JWT tokens
-	"acid/internal/cache"       // Redis caching layer
+	// OUR INTERNAL PACKAGES
+	"acid/internal/auth"          // JWT authentication
+	"acid/internal/cache"        // Redis caching layer
 	"acid/internal/clickhouse"  // ClickHouse search engine
 	"acid/internal/config"      // Configuration loading
-	"acid/internal/database"   // Database connections & queries
+	"acid/internal/database"   // Database connections
+	"acid/internal/dbsearch"  // Entity search intelligence
 	"acid/internal/handlers"  // HTTP request handlers
 	"acid/internal/middleware" // Security & rate limiting
 	"acid/internal/pipeline"  // Data processing
 	"acid/internal/schema"   // Schema discovery
 
-	// EXTERNAL PACKAGES - Third-party libraries
-	asciiart "github.com/romance-dev/ascii-art" // ASCII art banner
-	_ "github.com/romance-dev/ascii-art/fonts"  // Font for ASCII art
+	// EXTERNAL PACKAGES
+	"github.com/jackc/pgx/v5/pgxpool"
+	asciiart "github.com/romance-dev/ascii-art"
+	_ "github.com/romance-dev/ascii-art/fonts"
 )
 
-// =============================================================================
-// MAIN FUNCTION - The Starting Point
-// =============================================================================
-// This function runs when you start the application. It's the first thing that executes.
-// Think of it as the "main switch" that turns everything on.
-//
-// WHAT HAPPENS HERE (STEP BY STEP):
-// 1. Load all configuration settings
-// 2. Display the cool ASCII art banner
-// 3. Connect to PostgreSQL (main database)
-// 4. Set up Redis caching
-// 5. Auto-discover all database tables
-// 6. Connect to ClickHouse (search engine)
-// 7. Set up CDC (Change Data Capture) pipeline
-// 8. Set up authentication with JWT tokens
-// 9. Create all API routes
-// 10. Start the HTTP server
-// =============================================================================
 func main() {
-	// =============================================================================
+	// ============================================================================
 	// STEP 1: LOAD CONFIGURATION
-	// =============================================================================
-	// Load all settings from .env file and environment variables
-	// See internal/config/config.go for all the options
+	// ============================================================================
 	cfg := config.LoadConfig()
-
-	// Create a background context (used for database operations)
 	ctx := context.Background()
 
-	// =============================================================================
-	// STEP 2: DISPLAY STARTUP BANNER
-	// =============================================================================
-	// Show the cool ACID banner when starting
+	// Display startup banner
 	asciiart.NewFigure("ACID", "isometric1", true).Print()
 	log.Printf("🚀 ACID API Server Starting...")
 	log.Println("══════════════════════════════════════════════════════════════════")
 
-	// =============================================================================
-	// STEP 3: CONNECT TO POSTGRESQL
-	// =============================================================================
-	// Connect to the main PostgreSQL database
-	// This is where all your data is stored
+	// ============================================================================
+	// STEP 2: CONNECT TO POSTGRESQL
+	// ============================================================================
 	pool, err := database.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -117,44 +68,36 @@ func main() {
 	defer pool.Close()
 	log.Println("✅ Database connected")
 
-	// =============================================================================
-	// STEP 4: SET UP REDIS CACHING
-	// =============================================================================
-	// Set up Redis for caching (makes things faster)
-	// Redis stores temporary data to reduce database load
+	// ============================================================================
+	// STEP 3: SET UP REDIS CACHING
+	// ============================================================================
 	redisCache := cache.NewRedisCache(
 		cfg.RedisAddr,
 		cfg.RedisPassword,
 		cfg.RedisDB,
-		5*time.Minute, // Cache data for 5 minutes
+		5*time.Minute,
 	)
-
-	// Create multi-layer cache (with in-memory + Redis)
 	multiCache := cache.NewMultiLayerCache(redisCache, 30*time.Second)
 	log.Println("✅ Multi-layer cache initialized")
 
-	// =============================================================================
-	// STEP 5: AUTO-DISCOVER DATABASE SCHEMA
-	// =============================================================================
-	// Automatically discover all tables in the database
-	// This is what makes ACID dynamic - it figures out your database structure!
+	// ============================================================================
+	// STEP 4: AUTO-DISCOVER DATABASE SCHEMA
+	// ============================================================================
 	registry := schema.NewSchemaRegistry(pool.Pool)
 	if err := registry.LoadSchema(ctx); err != nil {
 		log.Fatalf("Failed to load schema: %v", err)
 	}
 	log.Printf("✅ Schema loaded: %d tables discovered", len(registry.GetAllTables()))
 
-	// =============================================================================
-	// STEP 6: CONNECT TO CLICKHOUSE (SEARCH ENGINE)
-	// =============================================================================
-	// Connect to ClickHouse for fast full-text search
-	// ClickHouse is optimized for search queries
+	// ============================================================================
+	// STEP 5: CONNECT TO CLICKHOUSE (SEARCH ENGINE)
+	// ============================================================================
 	chPool, err := clickhouse.NewConnectionPool(clickhouse.Config{
 		Addr:     cfg.ClickHouseAddr,
 		Database: cfg.ClickHouseDB,
 		Username: cfg.ClickHouseUser,
 		Password: cfg.ClickHousePassword,
-	}, 5) // 5 connection pool size
+	}, 5)
 
 	if err != nil {
 		log.Printf("⚠️  ClickHouse pool creation failed: %v", err)
@@ -168,49 +111,41 @@ func main() {
 		log.Println("⚠️  ClickHouse not available, search uses PostgreSQL")
 	}
 
-	// =============================================================================
-	// STEP 7: CREATE DYNAMIC REQUEST HANDLER
-	// =============================================================================
-	// This handler automatically works with ANY table in your database
-	// No code changes needed when you add new tables!
+	// ============================================================================
+	// STEP 6: CREATE DYNAMIC REQUEST HANDLER
+	// ============================================================================
 	dynamicRepo := database.NewDynamicRepository(pool.Pool, registry)
 	dynamicHandler := handlers.NewDynamicHandler(
 		dynamicRepo,
 		registry,
 		multiCache,
 		chSearch,
-		50,   // max page size (max records per page)
-		20,   // default page size
-		120*time.Second, // request timeout
+		50, 20,
+		120*time.Second,
 	)
 
-	// =============================================================================
-	// STEP 8: SET UP CDC (CHANGE DATA CAPITUDE)
-	// =============================================================================
-	// CDC syncs data from PostgreSQL to ClickHouse in real-time
-	// This keeps your search index up to date automatically
+	// ============================================================================
+	// STEP 7: SET UP CDC (CHANGE DATA CAPTURE)
+	// ============================================================================
 	var cdcManager *clickhouse.CDCManager
 	if chPool != nil && chPool.IsAvailable() && cfg.EnableCDC {
 		cdcConfig := clickhouse.CDCConfig{
-			BatchSize:       10000,    // Process 10k records at a time
-			SyncInterval:    30 * time.Second, // Check for changes every 30s
-			ParallelWorkers: 5,        // 5 workers for parallel processing
-			ChunkSize:       100000,   // Process 100k records per chunk
+			BatchSize:       10000,
+			SyncInterval:    30 * time.Second,
+			ParallelWorkers: 5,
+			ChunkSize:       100000,
 		}
-
 		cdcManager = clickhouse.NewCDCManager(pool.Pool, chSearch, registry, cdcConfig)
 		dynamicHandler.SetCDCManager(cdcManager)
 		cdcManager.Start()
 		log.Println("✅ CDC Manager started with auto-discovery")
 	}
 
-	// =============================================================================
-	// STEP 9: SET UP DATA PIPELINE PROCESSOR
-	// =============================================================================
-	// Process data from files (CSV, JSON, etc.)
+	// ============================================================================
+	// STEP 8: SET UP DATA PIPELINE PROCESSOR
+	// ============================================================================
 	pipelineProcessor := pipeline.NewPipelineProcessor(pool.Pool, "./ErrorFiles")
 
-	// Connect pipeline to CDC (triggers sync after processing)
 	if cdcManager != nil {
 		pipelineProcessor.SetCDCTrigger(func(tableName string) error {
 			log.Printf("🔄 Pipeline completed for table: %s, triggering CDC sync...", tableName)
@@ -226,183 +161,287 @@ func main() {
 
 	pipelineHandler := handlers.NewPipelineHandler(pipelineProcessor)
 
-	// =============================================================================
-	// STEP 10: SET UP AUTHENTICATION (JWT TOKENS)
-	// =============================================================================
-	// JWT (JSON Web Tokens) is how we secure the API
-	// Tokens verify identity without requiring password every time
+	// ============================================================================
+	// STEP 9: SET UP DB-SEARCH (ENTITY INTELLIGENCE)
+	// ============================================================================
+	entityRepo := database.NewEntityRepository(pool.Pool)
+	apiHandler := handlers.NewAPIHandler()
+
+	var adminSearchHandler *handlers.AdminSearchHandler
+	var entityHandler *handlers.EntityHandler
+
+	if cfg.EnableDBSearch {
+		pools := map[string]*pgxpool.Pool{"default": pool.Pool}
+		searchSvc, err := dbsearch.NewSearchService(ctx, pools)
+		if err != nil {
+			log.Printf("⚠️  DB-search metadata load failed: %v (search disabled)", err)
+		} else {
+			log.Printf("✅ DB-search ready — %d data sources", len(searchSvc.DataSourceIDs()))
+			adminSearchHandler = handlers.NewAdminSearchHandler(searchSvc, entityRepo)
+			entityHandler = handlers.NewEntityHandler(entityRepo, searchSvc)
+
+			go func() {
+				ticker := time.NewTicker(10 * time.Minute)
+				defer ticker.Stop()
+				for range ticker.C {
+					if err := searchSvc.Refresh(context.Background()); err != nil {
+						log.Printf("⚠️  Schema refresh error: %v", err)
+					} else {
+						log.Println("🔄 Schema metadata refreshed")
+					}
+				}
+			}()
+		}
+	} else {
+		log.Println("ℹ️  DB-search disabled")
+	}
+
+	// ============================================================================
+	// STEP 10: SET UP AUTHENTICATION (JWT)
+	// ============================================================================
 	jwtSecret := cfg.JWTSecret
 	if jwtSecret == "" {
-		// Default secret for development only! CHANGE IN PRODUCTION!
-		jwtSecret = "acid-jwt-secret-key-2026-change-in-production"
+		jwtSecret = "acid-jwt-secret-key-change-in-production"
 	}
 
 	authService := auth.NewAuthService(jwtSecret)
 	authHandler := handlers.NewAuthHandler(pool.Pool, authService)
 	authMiddleware := middleware.NewAuthMiddleware(authService, pool.Pool)
 
-	// =============================================================================
-	// STEP 11: CREATE HTTP ROUTER (API ROUTES)
-	// =============================================================================
-	// The router decides which function handles which URL
-	// Think of it as a phone switchboard - directing calls to the right person
+	// ============================================================================
+	// STEP 11: CREATE HTTP ROUTER
+	// ============================================================================
 	mux := http.NewServeMux()
 
-	// ============================================================================
-	// PUBLIC ROUTES - Anyone can access these (no login required)
-	// ============================================================================
+	// ==========================
+	// PUBLIC ROUTES
+	// ==========================
 
-// Web Pages (HTML files served to browsers)
-        mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
-                http.ServeFile(w, r, "./web/login.html")
-        })
-        mux.HandleFunc("GET /register", func(w http.ResponseWriter, r *http.Request) {
-                http.ServeFile(w, r, "./web/register.html")
-        })
-        mux.HandleFunc("GET /dashboard", func(w http.ResponseWriter, r *http.Request) {
-                http.ServeFile(w, r, "./web/dashboard.html")
-        })
-
-        // ACID Admin Panel - Complete Management UI
-        mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) {
-                http.ServeFile(w, r, "./web/admin.html")
-        })
-
-        // API Documentation page
+	// Web Pages
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/index.html")
+	})
+	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/login.html")
+	})
+	mux.HandleFunc("GET /register", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/register.html")
+	})
+	mux.HandleFunc("GET /dashboard", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/dashboard.html")
+	})
+	mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/admin.html")
+	})
 	mux.HandleFunc("GET /docs", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/docs.html")
 	})
 
-	// Authentication API endpoints (login, register, etc.)
+	// Public API
+	mux.HandleFunc("GET /api/info", apiHandler.GetAPIInfo)
 	mux.HandleFunc("POST /api/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/auth/login", authHandler.Login)
+
+	// Health Check (public for load balancers)
+	mux.HandleFunc("GET /api/health", dynamicHandler.HealthCheck)
+	mux.HandleFunc("GET /health", dynamicHandler.HealthCheck)
+
+	// Static Files
+	mux.HandleFunc("GET /swagger.yaml", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/swagger.yaml")
+	})
+	mux.HandleFunc("GET /style.css", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/style.css")
+	})
+	mux.HandleFunc("GET /app.js", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/app.js")
+	})
+	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./web/assets"))))
+
+	// ==========================
+	// PROTECTED ROUTES (require authentication)
+	// ==========================
+
+	// Auth endpoints
 	mux.HandleFunc("POST /api/auth/logout", authHandler.Logout)
-	mux.HandleFunc("GET /api/auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.GetMe)).ServeHTTP)
+	mux.Handle("GET /api/auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.GetMe)))
+	mux.Handle("GET /api/auth/api-keys", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.ListAPIKeys)))
+	mux.Handle("POST /api/auth/api-keys", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.CreateAPIKey)))
+	mux.Handle("DELETE /api/auth/api-keys/{id}", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.RevokeAPIKey)))
 
-        // API Keys (Protected)
-        mux.HandleFunc("GET /api/auth/api-keys", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.ListAPIKeys)).ServeHTTP)
-        mux.HandleFunc("POST /api/auth/api-keys", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.CreateAPIKey)).ServeHTTP)
-        mux.HandleFunc("DELETE /api/auth/api-keys/{id}", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.RevokeAPIKey)).ServeHTTP)
+	// Table endpoints
+	mux.Handle("GET /api/tables", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.ListTables)))
+	mux.Handle("GET /api/tables/{table}/schema", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetTableSchema)))
+	mux.Handle("GET /api/tables/{table}/records", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetRecords)))
+	mux.Handle("GET /api/tables/{table}/records/{pk}", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetRecordByPK)))
+	mux.Handle("GET /api/tables/{table}/stats", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetTableStats)))
+	mux.Handle("GET /api/tables/{table}/search", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.SearchRecords)))
 
-        // Health Check
-        mux.HandleFunc("GET /api/health", dynamicHandler.HealthCheck)
+	// Search endpoints
+	mux.Handle("GET /api/search", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.SearchOptimized)))
+	mux.Handle("GET /api/search/", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.SearchOptimized)))
+	mux.Handle("GET /api/search/duplicates", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.SearchGlobalWithDuplicates)))
 
-        // Static Files
-        mux.HandleFunc("GET /swagger.yaml", func(w http.ResponseWriter, r *http.Request) {
-                http.ServeFile(w, r, "./web/swagger.yaml")
-        })
-        mux.HandleFunc("GET /style.css", func(w http.ResponseWriter, r *http.Request) {
-                http.ServeFile(w, r, "./web/style.css")
-        })
-        mux.HandleFunc("GET /app.js", func(w http.ResponseWriter, r *http.Request) {
-                http.ServeFile(w, r, "./web/app.js")
-        })
-        // Assets folder (for scalar-standalone.js, images, etc.)
-        mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./web/assets"))))
+	// Pipeline endpoints
+	mux.Handle("POST /api/pipeline/start", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.StartJob)))
+	mux.Handle("GET /api/pipeline/jobs", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.ListJobs)))
+	mux.Handle("GET /api/pipeline/jobs/{job_id}", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.GetJobStatus)))
+	mux.Handle("GET /api/pipeline/jobs/{job_id}/stream", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.StreamJobProgress)))
+	mux.Handle("GET /api/pipeline/jobs/{job_id}/logs", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.GetJobLogs)))
 
-        // Index Page (Documentation)
-        mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-                if r.URL.Path == "/" {
-                        http.ServeFile(w, r, "./web/index.html")
-                } else {
-                        http.NotFound(w, r)
-                }
-        })
+	// CDC Status
+	mux.Handle("GET /api/cdc/status", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetCDCStatus)))
 
-        // ═══════════════════════════════════════════════════════════
-        // 🔒 PROTECTED ROUTES (with Auth Middleware)
-        // ═══════════════════════════════════════════════════════════
+	// Report & Multi-DB endpoints
+	multiDBManager := database.NewMultiDBManager()
+	if err := multiDBManager.AddDatabase(ctx, "primary", cfg.DatabaseURL); err != nil {
+		log.Printf("⚠️  Primary DB config warning: %v", err)
+	}
+	multiDBManager.SetPrimaryDB("primary")
 
-        // Table Endpoints
-        mux.Handle("GET /api/tables", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.ListTables)))
-        mux.Handle("GET /api/tables/{table}/schema", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetTableSchema)))
-        mux.Handle("GET /api/tables/{table}/records", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetRecords)))
-        mux.Handle("GET /api/tables/{table}/records/{pk}", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetRecordByPK)))
-        mux.Handle("GET /api/tables/{table}/stats", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetTableStats)))
-        mux.Handle("GET /api/tables/{table}/search", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.SearchRecords)))
+	reportHandler := handlers.NewReportHandler(dynamicRepo, registry, multiDBManager)
+	mux.Handle("GET /api/databases", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.ListDatabases)))
+	mux.Handle("GET /api/reports", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GenerateReport)))
+	mux.Handle("GET /api/system-report", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GenerateSystemReport)))
+	mux.Handle("GET /api/crossref", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GetCrossRef)))
 
-        // Search Endpoints
-        mux.Handle("GET /api/search/", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.SearchOptimized)))
-        mux.Handle("GET /api/search/duplicates", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.SearchGlobalWithDuplicates)))
+	log.Println("✅ Multi-DB manager initialized")
+	log.Println("📊 Report generation endpoints enabled")
 
-        // Pipeline Endpoints
-        mux.Handle("POST /api/pipeline/start", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.StartJob)))
-        mux.Handle("GET /api/pipeline/jobs/{job_id}", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.GetJobStatus)))
-        mux.Handle("GET /api/pipeline/jobs", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.ListJobs)))
-        mux.Handle("GET /api/pipeline/jobs/{job_id}/stream", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.StreamJobProgress)))
-        mux.Handle("GET /api/pipeline/jobs/{job_id}/logs", authMiddleware.RequireAuth(http.HandlerFunc(pipelineHandler.GetJobLogs)))
+	// Intelligent Search (dbsearch)
+	mux.Handle("GET /api/smart-search", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if entityHandler == nil {
+			http.Error(w, `{"error":"search not enabled"}`, http.StatusNotImplemented)
+			return
+		}
+		entityHandler.HandleSmartSearch(w, r)
+	})))
 
-        // CDC Status
-        mux.Handle("GET /api/cdc/status", authMiddleware.RequireAuth(http.HandlerFunc(dynamicHandler.GetCDCStatus)))
+	mux.Handle("GET /api/entities/{id}/profile", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if entityHandler == nil {
+			http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+			return
+		}
+		entityHandler.HandleGetEntityProfile(w, r)
+	})))
 
-        // ═══════════════════════════════════════════════════════════
-        // 📊 REPORT & MULTI-DB ENDPOINTS
-        // ═══════════════════════════════════════════════════════════
+	mux.Handle("GET /api/entities/{id}/export", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if entityHandler == nil {
+			http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+			return
+		}
+		entityHandler.HandleExportEntityProfile(w, r)
+	})))
 
-        multiDBManager := database.NewMultiDBManager()
-        if err := multiDBManager.AddDatabase(ctx, "primary", cfg.DatabaseURL); err != nil {
-                log.Printf("⚠️  Primary DB config warning: %v", err)
-        }
-        multiDBManager.SetPrimaryDB("primary")
+	// Cases
+	mux.Handle("GET /api/cases", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if entityHandler == nil {
+			http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+			return
+		}
+		entityHandler.HandleListCases(w, r)
+	})))
 
-        reportHandler := handlers.NewReportHandler(dynamicRepo, registry, multiDBManager)
+	mux.Handle("GET /api/cases/{id}", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if entityHandler == nil {
+			http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+			return
+		}
+		entityHandler.HandleGetCase(w, r)
+	})))
 
-        mux.Handle("GET /api/databases", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.ListDatabases)))
-        mux.Handle("GET /api/reports", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GenerateReport)))
-        mux.Handle("GET /api/system-report", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GenerateSystemReport)))
-        mux.Handle("GET /api/crossref", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GetCrossRef)))
+	// Work sessions
+	mux.Handle("POST /api/work-sessions", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if entityHandler == nil {
+			http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+			return
+		}
+		entityHandler.HandleStartWorkSession(w, r)
+	})))
 
-        log.Println("✅ Multi-DB manager initialized with 10 database support")
-        log.Println("📊 Report generation endpoints enabled")
+	mux.Handle("GET /api/work-sessions", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if entityHandler == nil {
+			http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+			return
+		}
+		entityHandler.HandleListWorkSessions(w, r)
+	})))
 
-        // ═══════════════════════════════════════════════════════════
-        // 🛡️ GLOBAL MIDDLEWARE
-        // ═══════════════════════════════════════════════════════════
+	// Admin db-search
+	mux.Handle("GET /api/admin/db-search", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if adminSearchHandler == nil {
+			http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+			return
+		}
+		adminSearchHandler.HandleDBSearch(w, r)
+	})))
 
-        handler := middleware.RateLimiter(mux)
-        handler = middleware.CORS(handler)
-        handler = middleware.Logger(handler)
+	mux.Handle("GET /api/admin/db-search/sources", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if adminSearchHandler == nil {
+			http.Error(w, `{"error":"not enabled"}`, http.StatusNotImplemented)
+			return
+		}
+		adminSearchHandler.HandleDBSearchSources(w, r)
+	})))
 
-        server := &http.Server{
-                Addr:         fmt.Sprintf(":%s", cfg.Port),
-                Handler:      handler,
-                ReadTimeout:  15 * time.Second,
-                WriteTimeout: 15 * time.Second,
-                IdleTimeout:  60 * time.Second,
-        }
+	// ============================================================================
+	// STEP 12: SET UP MIDDLEWARE CHAIN
+	// ============================================================================
+	handler := middleware.RateLimiter(mux)
+	handler = middleware.CORS(handler)
+	handler = middleware.Logger(handler)
+	handler = middleware.AuditLogger(pool.Pool)(handler)
+	handler = middleware.Recovery(handler)
 
-        go func() {
-                if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-                        log.Fatalf("Server failed to start: %v", err)
-                }
-        }()
+	// ============================================================================
+	// STEP 13: START SERVER
+	// ============================================================================
+	server := &http.Server{
+		Addr:              fmt.Sprintf(":%s", cfg.Port),
+		Handler:           handler,
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
 
-        quit := make(chan os.Signal, 1)
-        signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-        <-quit
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
 
-        log.Println("═══════════════════════════════════════════════════════════")
-        log.Println("🛑 Shutting down server gracefully...")
-        log.Println("═══════════════════════════════════════════════════════════")
+	log.Printf("✅ Server running on http://localhost:%s", cfg.Port)
+	log.Printf("📋 Admin Panel: http://localhost:%s/admin", cfg.Port)
 
-        if cdcManager != nil {
-                log.Println("⏸️  Stopping CDC Manager...")
-                cdcManager.Stop()
-        }
+	// Wait for shutdown signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-        if chPool != nil {
-                log.Println("🔌 Closing ClickHouse connection pool...")
-                if err := chPool.Close(); err != nil {
-                        log.Printf("⚠️  Error closing ClickHouse pool: %v", err)
-                }
-        }
+	log.Println("══════════════════════════════════════════════════════════════════")
+	log.Println("🛑 Shutting down server gracefully...")
+	log.Println("══════════════════════════════════════════════════════════")
 
-        shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-        defer cancel()
+	if cdcManager != nil {
+		log.Println("⏸️  Stopping CDC Manager...")
+		cdcManager.Stop()
+	}
 
-        if err := server.Shutdown(shutdownCtx); err != nil {
-                log.Fatalf("❌ Server forced to shutdown: %v", err)
-        }
+	if chPool != nil {
+		log.Println("🔌 Closing ClickHouse connection pool...")
+		if err := chPool.Close(); err != nil {
+			log.Printf("⚠️  Error closing ClickHouse pool: %v", err)
+		}
+	}
 
-        log.Println("✅ Server exited properly")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("❌ Server forced to shutdown: %v", err)
+	}
+
+	log.Println("✅ Server exited properly")
 }

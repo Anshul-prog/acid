@@ -133,7 +133,7 @@ jobs:
       - name: Generate SHA256 checksum
         run: |
           cd dist
-          sha256sum "${{ env.BINARY_NAME }}" > "${{ env.BINARY_NAME }}.sha256"
+          sha256sum "$BINARY_NAME" > "$BINARY_NAME.sha256"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

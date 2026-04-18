@@ -31,6 +31,7 @@ type Pipeline struct {
 	eventChan chan CDCEvent   // Raw changes from PG
 	batchChan chan []CDCEvent // Normalized batches
 	stopChan  chan struct{}
+	stopOnce  sync.Once
 	wg        sync.WaitGroup
 
 	// Config
@@ -47,6 +48,7 @@ func NewPipeline(pgPool *pgxpool.Pool, chRepo *clickhouse.SearchRepository, regi
 		// Buffered channels prevent blocking
 		eventChan: make(chan CDCEvent, 10000),
 		batchChan: make(chan []CDCEvent, 100),
+		stopChan:  make(chan struct{}),
 		workers:   3,   // Number of consumers writing to ClickHouse
 		batchSize: 500, // Use small batches because Async Inserts handles the buffering
 		flushTime: 1 * time.Second,
@@ -70,7 +72,9 @@ func (p *Pipeline) Start() {
 }
 
 func (p *Pipeline) Stop() {
-	close(p.stopChan)
+	p.stopOnce.Do(func() {
+		close(p.stopChan)
+	})
 	p.wg.Wait()
 }
 
@@ -145,6 +149,7 @@ func (p *Pipeline) fetchChanges() {
 // STAGE 2: The Batcher (Groups events to save API calls)
 func (p *Pipeline) batcher() {
 	defer p.wg.Done()
+	defer close(p.batchChan)
 
 	buf := make([]CDCEvent, 0, p.batchSize)
 	timer := time.NewTimer(p.flushTime)

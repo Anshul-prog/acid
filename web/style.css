@@ -3,9 +3,6 @@
    Shared styles for all pages
    ============================================ */
 
-/* Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
 /* ============================================
    CSS Variables - Mars Theme
    ============================================ */
@@ -103,7 +100,7 @@ html {
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
@@ -113,7 +110,7 @@ body {
 }
 
 code, pre, .mono {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-family: 'SFMono-Regular', 'Cascadia Mono', 'Consolas', 'Liberation Mono', monospace;
 }
 
 a {
@@ -184,6 +181,46 @@ a:hover {
     background-size: 60px 60px;
     mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 40%, transparent 100%);
     opacity: 0.5;
+}
+
+/* ============================================
+   Layer Role Badges — Backend / Frontend
+   Visible in the nav bar so operators can
+   immediately identify which layer they are
+   looking at.
+   ============================================ */
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+.role-badge-backend {
+    background: rgba(14, 165, 233, 0.18);
+    color: #38bdf8;
+    border: 1px solid rgba(14, 165, 233, 0.35);
+}
+
+.role-badge-frontend {
+    background: rgba(168, 85, 247, 0.18);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.role-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2s infinite;
 }
 
 /* ============================================

@@ -184,7 +184,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5000/api/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -473,8 +473,8 @@ sudo chown -R lsd:lsd /opt/lsd
 
 ```bash
 # Clone and build
-git clone https://github.com/Daveshvats/L.S.D.git
-cd L.S.D
+git clone https://github.com/vinayyadav36/acid.git
+cd acid
 
 # Build binary
 CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /opt/lsd/bin/api ./cmd/api
