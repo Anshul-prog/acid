@@ -33,7 +33,7 @@ async function loadData() {
     statusEl.textContent = 'Loading content...';
 
     try {
-        const res = await fetch(`/labs/hadoop-review/static/data.json?t=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`/api/private/nosql/hadoop-review?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
         }

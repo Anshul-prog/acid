@@ -274,6 +274,15 @@ func main() {
 
 	// Public API
 	mux.HandleFunc("GET /api/info", apiHandler.GetAPIInfo)
+	mux.HandleFunc("GET /api/private/nosql/hadoop-review", func(w http.ResponseWriter, r *http.Request) {
+		payload, err := os.ReadFile("./databases/private_nosql/hadoop_review.json")
+		if err != nil {
+			http.Error(w, `{"error":"private json data unavailable"}`, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(payload)
+	})
 	mux.HandleFunc("POST /api/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/auth/login", authHandler.Login)
 
