@@ -4,6 +4,10 @@ import (
 	"time"
 )
 
+// =============================================================================
+// CORE DATA MODELS
+// =============================================================================
+
 type Record struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
@@ -12,6 +16,34 @@ type Record struct {
 	Value     float64   `json:"value"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// =============================================================================
+// CATEGORY SYSTEM MODELS
+// =============================================================================
+
+// Category - Represents a tag/category that can be assigned to any entity
+type Category struct {
+	ID          int        `json:"id"`
+	Name        string     `json:"name"`
+	Description string    `json:"description,omitempty"`
+	Color       string     `json:"color"`
+	EntityType  string     `json:"entity_type"`
+	Icon        string     `json:"icon,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	CreatedBy   int        `json:"created_by,omitempty"`
+	IsActive    bool       `json:"is_active"`
+}
+
+// EntityCategory - Junction table for entity-category relationships
+type EntityCategory struct {
+	ID          int        `json:"id"`
+	EntityType string     `json:"entity_type"`
+	EntityID   int        `json:"entity_id"`
+	CategoryID int        `json:"category_id"`
+	AssignedAt time.Time `json:"assigned_at"`
+	AssignedBy int        `json:"assigned_by,omitempty"`
 }
 
 type PaginatedResponse struct {

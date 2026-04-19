@@ -489,6 +489,9 @@
             <div class="nav-item" onclick="showSection('users')">
                 <span>👥</span> Users
             </div>
+            <div class="nav-item" onclick="showSection('categories')">
+                <span>🏷️</span> Categories <span class="badge" id="category-count">10</span>
+            </div>
             <div class="nav-item" onclick="showSection('settings')">
                 <span>⚙️</span> Settings
             </div>
@@ -715,6 +718,51 @@
                     </div>
                     <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
                 </div>
+            </div>
+
+            <!-- Categories Section -->
+            <div id="section-categories" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">🏷️ Categories / Tags</h2>
+                        <button class="btn btn-primary" onclick="showCreateCategoryModal()">+ New Category</button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Filter by Entity Type</label>
+                        <select class="form-select" id="category-entity-filter" onchange="loadCategories()">
+                            <option value="">All Types</option>
+                            <option value="employee">Employee</option>
+                            <option value="user">User</option>
+                            <option value="table">Table</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Icon</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Color</th>
+                                <th>Assigned To</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categories-body">
+                            <tr><td colspan="6" class="loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Category Entities -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">👥 Entities with Selected Category</h2>
+                    </div>
+                    <p class="text-secondary" style="margin-bottom: 1rem;">Click on a category to see all assigned entities</p>
+                    <div id="category-entities"></div>
+                </div>
+            </div>
             </div>
         </main>
     </div>
@@ -1064,6 +1112,165 @@
 
         function showAddUserModal() {
             showToast('Add user coming soon!');
+        }
+
+        // ========================================
+        // CATEGORY MANAGEMENT
+        // ========================================
+        
+        async function loadCategories() {
+            try {
+                const entityType = document.getElementById('category-entity-filter').value;
+                let url = '/api/categories';
+                if (entityType) url += '?entity_type=' + entityType;
+                
+                const data = await apiCall(url);
+                renderCategories(data.categories || []);
+                
+                if (data.count !== undefined) {
+                    document.getElementById('category-count').textContent = data.count;
+                }
+            } catch (e) {
+                showToast('Error loading categories', 'error');
+            }
+        }
+
+        function renderCategories(categories) {
+            const tbody = document.getElementById('categories-body');
+            if (!categories || categories.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">No categories yet. Create one!</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = categories.map(cat => `
+                <tr>
+                    <td style="font-size: 1.5rem;">${cat.icon || '🏷️'}</td>
+                    <td><strong>${cat.name}</strong></td>
+                    <td><span class="status-badge status-active">${cat.entity_type}</span></td>
+                    <td><span class="status-badge" style="background: ${cat.color}33; color: ${cat.color}">${cat.color}</span></td>
+                    <td><button class="btn btn-secondary" onclick="loadCategoryEntities(${cat.id})">View</button></td>
+                    <td>
+                        <button class="btn-icon" onclick="editCategory(${cat.id}, '${cat.name}', '${cat.description || ''}', '${cat.color}', '${cat.entity_type}', '${cat.icon || ''}')">✏️</button>
+                        <button class="btn-icon" onclick="deleteCategory(${cat.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadCategoryEntities(categoryId) {
+            try {
+                const data = await apiCall(`/api/categories/${categoryId}/entities`);
+                const container = document.getElementById('category-entities');
+                
+                if (!data.entities || data.entities.length === 0) {
+                    container.innerHTML = '<p>No entities assigned to this category yet.</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="data-table">
+                        <thead><tr><th>ID</th><th>Type</th><th>Username/Name</th><th>Assigned</th></tr></thead>
+                        <tbody>
+                            ${data.entities.map(e => `
+                                <tr>
+                                    <td>${e.entity_id}</td>
+                                    <td>${e.entity_type}</td>
+                                    <td>${e.username || e.email || 'N/A'}</td>
+                                    <td>${new Date(e.assigned_at).toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                showToast('Error loading entities', 'error');
+            }
+        }
+
+        function showCreateCategoryModal() {
+            const name = prompt('Category name (e.g., Developer, Manager):');
+            if (!name) return;
+            
+            const description = prompt('Description:') || '';
+            const entityType = prompt('Entity type (employee, user, table, custom):') || 'employee';
+            const color = prompt('Color (e.g., #3b82f6 for blue):') || '#3b82f6';
+            const icon = prompt('Icon (emoji):') || '🏷️';
+            
+            createCategory({ name, description, entity_type: entityType, color, icon });
+        }
+
+        async function createCategory(categoryData) {
+            try {
+                const response = await fetch('/api/categories', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + authToken 
+                    },
+                    body: JSON.stringify(categoryData)
+                });
+                
+                if (!response.ok) throw new Error('Failed to create');
+                
+                showToast('Category created!', 'success');
+                loadCategories();
+            } catch (e) {
+                showToast('Error creating category', 'error');
+            }
+        }
+
+        function editCategory(id, name, description, color, entityType, icon) {
+            const newName = prompt('Edit name:', name);
+            if (newName === null) return;
+            
+            const newDesc = prompt('Edit description:', description);
+            const newColor = prompt('Edit color:', color);
+            
+            updateCategory(id, { 
+                name: newName || name, 
+                description: newDesc !== null ? newDesc : description,
+                color: newColor || color,
+                entity_type: entityType,
+                icon: icon
+            });
+        }
+
+        async function updateCategory(id, categoryData) {
+            try {
+                const response = await fetch(`/api/categories/${id}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + authToken 
+                    },
+                    body: JSON.stringify(categoryData)
+                });
+                
+                if (!response.ok) throw new Error('Failed to update');
+                
+                showToast('Category updated!', 'success');
+                loadCategories();
+            } catch (e) {
+                showToast('Error updating category', 'error');
+            }
+        }
+
+        async function deleteCategory(id) {
+            if (!confirm('Are you sure? This will remove the category from all entities.')) return;
+            
+            try {
+                const response = await fetch(`/api/categories/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + authToken }
+                });
+                
+                if (!response.ok) throw new Error('Failed to delete');
+                
+                showToast('Category deleted!', 'success');
+                loadCategories();
+            } catch (e) {
+                showToast('Error deleting category', 'error');
+            }
         }
     </script>
 </body>

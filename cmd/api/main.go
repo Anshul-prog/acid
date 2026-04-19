@@ -305,8 +305,30 @@ func main() {
 	mux.Handle("GET /api/system-report", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GenerateSystemReport)))
 	mux.Handle("GET /api/crossref", authMiddleware.RequireAuth(http.HandlerFunc(reportHandler.GetCrossRef)))
 
+	// ============================================================================
+	// CATEGORY MANAGEMENT SYSTEM
+	// ============================================================================
+	// Category CRUD - Create, read, update, delete categories (for tags/positions)
+	mux.Handle("GET /api/categories", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.ListCategories)))
+	mux.Handle("GET /api/categories/{id}", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.GetCategory)))
+	mux.Handle("POST /api/categories", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.CreateCategory)))
+	mux.Handle("PUT /api/categories/{id}", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.UpdateCategory)))
+	mux.Handle("DELETE /api/categories/{id}", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.DeleteCategory)))
+
+	// Entity-Category assignments - Assign categories to entities
+	mux.Handle("POST /api/categories/assign", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.AssignCategory)))
+	mux.Handle("POST /api/categories/unassign", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.UnassignCategory)))
+	mux.Handle("GET /api/categories/entity/{entity_type}/{entity_id}", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.GetEntityCategories)))
+	mux.Handle("GET /api/categories/{id}/entities", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.GetCategoryEntities)))
+
 	log.Println("✅ Multi-DB manager initialized")
 	log.Println("📊 Report generation endpoints enabled")
+
+	// ============================================================================
+	// STEP 12: SET UP CATEGORY SYSTEM
+	// ============================================================================
+	categoryHandler := handlers.NewCategoryHandler(pool.Pool)
+	log.Println("✅ Category system initialized")
 
 	// Intelligent Search (dbsearch)
 	mux.Handle("GET /api/smart-search", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
