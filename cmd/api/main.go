@@ -29,16 +29,16 @@ import (
 	"time"
 
 	// OUR INTERNAL PACKAGES
-	"acid/internal/auth"          // JWT authentication
-	"acid/internal/cache"        // Redis caching layer
-	"acid/internal/clickhouse"  // ClickHouse search engine
-	"acid/internal/config"      // Configuration loading
+	"acid/internal/auth"       // JWT authentication
+	"acid/internal/cache"      // Redis caching layer
+	"acid/internal/clickhouse" // ClickHouse search engine
+	"acid/internal/config"     // Configuration loading
 	"acid/internal/database"   // Database connections
-	"acid/internal/dbsearch"  // Entity search intelligence
-	"acid/internal/handlers"  // HTTP request handlers
+	"acid/internal/dbsearch"   // Entity search intelligence
+	"acid/internal/handlers"   // HTTP request handlers
 	"acid/internal/middleware" // Security & rate limiting
-	"acid/internal/pipeline"  // Data processing
-	"acid/internal/schema"   // Schema discovery
+	"acid/internal/pipeline"   // Data processing
+	"acid/internal/schema"     // Schema discovery
 
 	// EXTERNAL PACKAGES
 	"github.com/jackc/pgx/v5/pgxpool"

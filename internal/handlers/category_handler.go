@@ -1,23 +1,24 @@
 package handlers
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"acid/internal/middleware"
 	"acid/internal/models"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CategoryHandler struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
-func NewCategoryHandler(db *sql.DB) *CategoryHandler {
+func NewCategoryHandler(db *pgxpool.Pool) *CategoryHandler {
 	return &CategoryHandler{db: db}
 }
 
@@ -28,27 +29,27 @@ func NewCategoryHandler(db *sql.DB) *CategoryHandler {
 // List categories - GET /api/categories
 func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	entityType := r.URL.Query().Get("entity_type")
-	
+
 	query := `
 		SELECT id, name, description, color, entity_type, icon, created_at, updated_at, created_by, is_active
 		FROM categories
 		WHERE is_active = true
 	`
 	args := []interface{}{}
-	
+
 	if entityType != "" {
 		query += " AND entity_type = $1"
 		args = append(args, entityType)
 	}
 	query += " ORDER BY name"
-	
-	rows, err := h.db.QueryContext(r.Context(), query, args...)
+
+	rows, err := h.db.Query(r.Context(), query, args...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var categories []map[string]interface{}
 	for rows.Next() {
 		var cat models.Category
@@ -57,34 +58,34 @@ func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request)
 		}
 		categories = append(categories, map[string]interface{}{
 			"id":          cat.ID,
-			"name":       cat.Name,
+			"name":        cat.Name,
 			"description": cat.Description,
-			"color":      cat.Color,
+			"color":       cat.Color,
 			"entity_type": cat.EntityType,
-			"icon":       cat.Icon,
-			"created_at": cat.CreatedAt,
-			"updated_at": cat.UpdatedAt,
+			"icon":        cat.Icon,
+			"created_at":  cat.CreatedAt,
+			"updated_at":  cat.UpdatedAt,
 		})
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"categories": categories,
-		"count": len(categories),
+		"count":      len(categories),
 	})
 }
 
 // Get single category - GET /api/categories/{id}
 func (h *CategoryHandler) GetCategory(w http.ResponseWriter, r *http.Request) {
 	id := extractID(r.URL.Path)
-	
+
 	var cat models.Category
-	err := h.db.QueryRowContext(r.Context(), `
+	err := h.db.QueryRow(r.Context(), `
 		SELECT id, name, description, color, entity_type, icon, created_at, updated_at, created_by, is_active
 		FROM categories WHERE id = $1
 	`, id).Scan(&cat.ID, &cat.Name, &cat.Description, &cat.Color, &cat.EntityType, &cat.Icon, &cat.CreatedAt, &cat.UpdatedAt, &cat.CreatedBy, &cat.IsActive)
-	
-	if err == sql.ErrNoRows {
+
+	if errors.Is(err, pgx.ErrNoRows) {
 		http.Error(w, "Category not found", http.StatusNotFound)
 		return
 	}
@@ -92,10 +93,10 @@ func (h *CategoryHandler) GetCategory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":           cat.ID,
+		"id":          cat.ID,
 		"name":        cat.Name,
 		"description": cat.Description,
 		"color":       cat.Color,
@@ -109,45 +110,45 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	if r.Header.Get("Content-Type") == "" {
 		w.Header().Set("Content-Type", "application/json")
 	}
-	
+
 	var req struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
-		Color      string `json:"color"`
-		EntityType string `json:"entity_type"`
-		Icon      string `json:"icon"`
+		Color       string `json:"color"`
+		EntityType  string `json:"entity_type"`
+		Icon        string `json:"icon"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.Name == "" {
 		http.Error(w, "Name is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.EntityType == "" {
 		req.EntityType = "employee" // Default
 	}
-	
+
 	var newID int
-	err := h.db.QueryRowContext(r.Context(), `
+	err := h.db.QueryRow(r.Context(), `
 		INSERT INTO categories (name, description, color, entity_type, icon, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 		RETURNING id
 	`, req.Name, req.Description, req.Color, req.EntityType, req.Icon).Scan(&newID)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":      newID,
+		"id":     newID,
 		"name":   req.Name,
 		"status": "created",
 	})
@@ -156,26 +157,26 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 // Update category - PUT /api/categories/{id}
 func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	id := extractID(r.URL.Path)
-	
+
 	var req struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
-		Color      string `json:"color"`
-		EntityType string `json:"entity_type"`
-		Icon      string `json:"icon"`
-		IsActive   *bool  `json:"is_active"`
+		Color       string `json:"color"`
+		EntityType  string `json:"entity_type"`
+		Icon        string `json:"icon"`
+		IsActive    *bool  `json:"is_active"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	// Build dynamic update query
 	query := "UPDATE categories SET updated_at = NOW()"
 	args := []interface{}{}
 	argNum := 1
-	
+
 	if req.Name != "" {
 		query += fmt.Sprintf(", name = $%d", argNum)
 		args = append(args, req.Name)
@@ -206,22 +207,22 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 		args = append(args, *req.IsActive)
 		argNum++
 	}
-	
+
 	query += fmt.Sprintf(" WHERE id = $%d", argNum)
 	args = append(args, id)
-	
-	result, err := h.db.ExecContext(r.Context(), query, args...)
+
+	result, err := h.db.Exec(r.Context(), query, args...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
-	rowsAffected, _ := result.RowsAffected()
+
+	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		http.Error(w, "Category not found", http.StatusNotFound)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":     id,
@@ -232,21 +233,21 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 // Delete category - DELETE /api/categories/{id}
 func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 	id := extractID(r.URL.Path)
-	
+
 	// Soft delete - set is_active = false
-	result, err := h.db.ExecContext(r.Context(), 
+	result, err := h.db.Exec(r.Context(),
 		"UPDATE categories SET is_active = false, updated_at = NOW() WHERE id = $1", id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
-	rowsAffected, _ := result.RowsAffected()
+
+	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		http.Error(w, "Category not found", http.StatusNotFound)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":     id,
@@ -262,31 +263,31 @@ func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 func (h *CategoryHandler) AssignCategory(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		EntityType string `json:"entity_type"`
-		EntityID  int    `json:"entity_id"`
-		CategoryID int  `json:"category_id"`
+		EntityID   int    `json:"entity_id"`
+		CategoryID int    `json:"category_id"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.EntityType == "" || req.EntityID == 0 || req.CategoryID == 0 {
 		http.Error(w, "entity_type, entity_id, and category_id are required", http.StatusBadRequest)
 		return
 	}
-	
-	_, err := h.db.ExecContext(r.Context(), `
+
+	_, err := h.db.Exec(r.Context(), `
 		INSERT INTO entity_categories (entity_type, entity_id, category_id, assigned_at)
 		VALUES ($1, $2, $3, NOW())
 		ON CONFLICT (entity_type, entity_id, category_id) DO NOTHING
 	`, req.EntityType, req.EntityID, req.CategoryID)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status": "assigned",
@@ -297,25 +298,25 @@ func (h *CategoryHandler) AssignCategory(w http.ResponseWriter, r *http.Request)
 func (h *CategoryHandler) UnassignCategory(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		EntityType string `json:"entity_type"`
-		EntityID  int    `json:"entity_id"`
-		CategoryID int  `json:"category_id"`
+		EntityID   int    `json:"entity_id"`
+		CategoryID int    `json:"category_id"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
-	_, err := h.db.ExecContext(r.Context(), `
+
+	_, err := h.db.Exec(r.Context(), `
 		DELETE FROM entity_categories 
 		WHERE entity_type = $1 AND entity_id = $2 AND category_id = $3
 	`, req.EntityType, req.EntityID, req.CategoryID)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status": "unassigned",
@@ -325,8 +326,8 @@ func (h *CategoryHandler) UnassignCategory(w http.ResponseWriter, r *http.Reques
 // Get categories for an entity - GET /api/categories/entity/{entity_type}/{entity_id}
 func (h *CategoryHandler) GetEntityCategories(w http.ResponseWriter, r *http.Request) {
 	entityType, entityID := getEntityInfoFromPath(r.URL.Path)
-	
-	rows, err := h.db.QueryContext(r.Context(), `
+
+	rows, err := h.db.Query(r.Context(), `
 		SELECT c.id, c.name, c.description, c.color, c.icon, ec.assigned_at
 		FROM entity_categories ec
 		JOIN categories c ON c.id = ec.category_id
@@ -338,7 +339,7 @@ func (h *CategoryHandler) GetEntityCategories(w http.ResponseWriter, r *http.Req
 		return
 	}
 	defer rows.Close()
-	
+
 	var categories []map[string]interface{}
 	for rows.Next() {
 		var catID int
@@ -349,18 +350,18 @@ func (h *CategoryHandler) GetEntityCategories(w http.ResponseWriter, r *http.Req
 		}
 		categories = append(categories, map[string]interface{}{
 			"id":          catID,
-			"name":       name,
+			"name":        name,
 			"description": description,
-			"color":      color,
-			"icon":       icon,
+			"color":       color,
+			"icon":        icon,
 			"assigned_at": assignedAt,
 		})
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"categories": categories,
-		"count": len(categories),
+		"count":      len(categories),
 	})
 }
 
@@ -368,7 +369,7 @@ func (h *CategoryHandler) GetEntityCategories(w http.ResponseWriter, r *http.Req
 func (h *CategoryHandler) GetCategoryEntities(w http.ResponseWriter, r *http.Request) {
 	categoryID := extractID(r.URL.Path)
 	entityType := r.URL.Query().Get("entity_type")
-	
+
 	query := `
 		SELECT ec.entity_id, ec.entity_type, ec.assigned_at, u.username, u.email
 		FROM entity_categories ec
@@ -376,20 +377,20 @@ func (h *CategoryHandler) GetCategoryEntities(w http.ResponseWriter, r *http.Req
 		WHERE ec.category_id = $1
 	`
 	args := []interface{}{categoryID}
-	
+
 	if entityType != "" {
 		query += " AND ec.entity_type = $2"
 		args = append(args, entityType)
 	}
 	query += " ORDER BY ec.assigned_at DESC"
-	
-	rows, err := h.db.QueryContext(r.Context(), query, args...)
+
+	rows, err := h.db.Query(r.Context(), query, args...)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var entities []map[string]interface{}
 	for rows.Next() {
 		var entityID int
@@ -403,15 +404,15 @@ func (h *CategoryHandler) GetCategoryEntities(w http.ResponseWriter, r *http.Req
 			"entity_id":   entityID,
 			"entity_type": entityType,
 			"assigned_at": assignedAt,
-			"username":   username.String,
-			"email":      email.String,
+			"username":    username.String,
+			"email":       email.String,
 		})
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"entities": entities,
-		"count": len(entities),
+		"count":    len(entities),
 	})
 }
 
@@ -459,7 +460,7 @@ func getEntityInfoFromPath(path string) (string, int) {
 	if current != "" {
 		parts = append(parts, current)
 	}
-	
+
 	// Get last two parts
 	if len(parts) >= 2 {
 		entityID, _ := strconv.Atoi(parts[len(parts)-1])
