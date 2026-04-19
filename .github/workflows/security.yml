@@ -169,8 +169,21 @@ jobs:
 
       - name: Install Syft
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b $HOME/.local/bin
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          syft_installed=false
+          for attempt in 1 2 3; do
+            if go install github.com/anchore/syft/cmd/syft@latest; then
+              syft_installed=true
+              break
+            fi
+            echo "Syft install failed on attempt ${attempt}, retrying..."
+            sleep 5
+          done
+          if [ "${syft_installed}" != "true" ]; then
+            echo "Failed to install Syft after 3 attempts"
+            exit 1
+          fi
+          command -v "$(go env GOPATH)/bin/syft" >/dev/null
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Generate SBOM
         run: |

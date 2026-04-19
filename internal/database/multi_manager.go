@@ -12,7 +12,7 @@ import (
 )
 
 type MultiDBManager struct {
-	pools      map[string]*pgxpool.Pool
+	pools     map[string]*pgxpool.Pool
 	primaryDB string
 	mu        sync.RWMutex
 	configs   map[string]*MultiDBConfig
@@ -21,28 +21,28 @@ type MultiDBManager struct {
 type MultiDBConfig struct {
 	Name            string
 	URL             string
-	MaxConns         int32
-	MinConns         int32
-	MaxConnLifetime  time.Duration
+	MaxConns        int32
+	MinConns        int32
+	MaxConnLifetime time.Duration
 	MaxConnIdleTime time.Duration
-	Enabled        bool
+	Enabled         bool
 	TableCount      int
-	TotalRecords   int64
+	TotalRecords    int64
 }
 
 type DBMeta struct {
-	Name         string   `json:"name"`
-	TableCount  int      `json:"table_count"`
+	Name       string    `json:"name"`
+	TableCount int       `json:"table_count"`
 	TotalRows  int64     `json:"total_rows"`
 	LastSync   time.Time `json:"last_sync"`
-	Status    string   `json:"status"`
-	IsReplica bool     `json:"is_replica"`
-	RefDBs    []string `json:"ref_dbs,omitempty"`
+	Status     string    `json:"status"`
+	IsReplica  bool      `json:"is_replica"`
+	RefDBs     []string  `json:"ref_dbs,omitempty"`
 }
 
 func NewMultiDBManager() *MultiDBManager {
 	return &MultiDBManager{
-		pools:    make(map[string]*pgxpool.Pool),
+		pools:   make(map[string]*pgxpool.Pool),
 		configs: make(map[string]*MultiDBConfig),
 	}
 }
@@ -81,11 +81,11 @@ func (m *MultiDBManager) AddDatabase(ctx context.Context, name, url string) erro
 	m.configs[name] = &MultiDBConfig{
 		Name:            name,
 		URL:             url,
-		MaxConns:         25,
-		MinConns:         5,
-		MaxConnLifetime:  time.Hour,
-		MaxConnIdleTime:  30 * time.Minute,
-		Enabled:        true,
+		MaxConns:        25,
+		MinConns:        5,
+		MaxConnLifetime: time.Hour,
+		MaxConnIdleTime: 30 * time.Minute,
+		Enabled:         true,
 	}
 
 	log.Printf("✅ Added database: %s (max_conns=%d)", name, config.MaxConns)
@@ -138,18 +138,20 @@ func (m *MultiDBManager) GetDatabaseMeta(ctx context.Context) ([]DBMeta, error) 
 		var tableCount int
 		var totalRows int64
 
-		err := pool.QueryRow(ctx, `
+		if err := pool.QueryRow(ctx, `
 			SELECT count(*), COALESCE(sum(pg_total_relation_size(relid)), 0::bigint)
 			FROM pg_stat_user_tables
-		`).Scan(&tableCount, &totalRows)
+		`).Scan(&tableCount, &totalRows); err != nil {
+			log.Printf("failed to get metadata for %s: %v", name, err)
+		}
 
 		refDBs := m.findReferencedDBs(ctx, pool, name)
 
 		results = append(results, DBMeta{
-			Name:         name,
-			TableCount:   tableCount,
-			TotalRows:   totalRows,
-			LastSync:    time.Now(),
+			Name:       name,
+			TableCount: tableCount,
+			TotalRows:  totalRows,
+			LastSync:   time.Now(),
 			Status:     "active",
 			IsReplica:  false,
 			RefDBs:     refDBs,
@@ -163,8 +165,8 @@ func (m *MultiDBManager) findReferencedDBs(ctx context.Context, pool *pgxpool.Po
 	rows, err := pool.Query(ctx, `
 		SELECT table_name 
 		FROM information_schema.tables 
-	WHERE table_schema = 'public'
-	AND table_name LIKE '%_ref' OR table_name LIKE '%_link' OR table_name LIKE '%_rel'
+		WHERE table_schema = 'public'
+		AND (table_name LIKE '%_ref' OR table_name LIKE '%_link' OR table_name LIKE '%_rel')
 	`)
 	if err != nil {
 		return nil
@@ -206,8 +208,8 @@ func (m *MultiDBManager) FindEntityAcrossDBs(ctx context.Context, entityValue st
 		}
 
 		results = append(results, DBMeta{
-			Name:    name,
-			Status:  fmt.Sprintf("found_%d", count),
+			Name:   name,
+			Status: fmt.Sprintf("found_%d", count),
 			RefDBs: []string{fmt.Sprintf("match_in_%s", columnName)},
 		})
 	}
@@ -271,15 +273,16 @@ func (m *MultiDBManager) GenerateCrossDBReport(ctx context.Context, dbName, tabl
 		AND (
 			c.data_type IN ('character varying', 'text', 'varchar', 'char')
 		)
+		AND (t.table_name ILIKE $1 OR c.column_name ILIKE $1)
 		AND EXISTS (
 			SELECT 1 FROM information_schema.columns c2
 			WHERE c2.table_name = t.table_name
 			AND c2.table_schema = 'public'
-			AND c2.column_name = 'name' OR c2.column_name = 'title' OR c2.column_name = 'email'
+			AND (c2.column_name = 'name' OR c2.column_name = 'title' OR c2.column_name = 'email')
 		)
 	`
 
-	rows, err := pool.Query(ctx, query)
+	rows, err := pool.Query(ctx, query, searchPattern)
 	if err != nil {
 		return nil, err
 	}
@@ -293,9 +296,9 @@ func (m *MultiDBManager) GenerateCrossDBReport(ctx context.Context, dbName, tabl
 		}
 		results = append(results, map[string]interface{}{
 			"source_table": tableName,
-			"column":      colName,
-			"data_type":   dataType,
-			"match_type":  matchType,
+			"column":       colName,
+			"data_type":    dataType,
+			"match_type":   matchType,
 		})
 	}
 	return results, nil
@@ -331,10 +334,10 @@ func (m *MultiDBManager) GetStats(ctx context.Context) map[string]interface{} {
 		`).Scan(&tableCount, &totalRows)
 
 		dbs = append(dbs, map[string]interface{}{
-			"name":         name,
-			"table_count":  tableCount,
-			"total_rows":    totalRows,
-			"is_primary":   name == m.primaryDB,
+			"name":        name,
+			"table_count": tableCount,
+			"total_rows":  totalRows,
+			"is_primary":  name == m.primaryDB,
 		})
 	}
 	stats["databases"] = dbs
@@ -370,7 +373,7 @@ func (m *MultiDBManager) SearchCrossDB(ctx context.Context, query string, limit 
 				"database":          dbName,
 				"table":             tableName,
 				"column":            columnName,
-				"search_match_type":  "column_name",
+				"search_match_type": "column_name",
 			})
 		}
 		rows.Close()
