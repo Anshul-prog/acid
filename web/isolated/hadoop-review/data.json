@@ -1,0 +1,85 @@
+{
+  "title": "Big Data and Hadoop Review Pack",
+  "items": [
+    {
+      "id": "Q1A",
+      "question": "Define Big Data. Mention any two sources where Big Data is generated.",
+      "answer": "Big Data refers to extremely large and complex datasets that cannot be easily handled by traditional data-processing tools. It is usually characterized by high volume, velocity, and variety. Two sources of Big Data are social media platforms and sensor/IoT devices."
+    },
+    {
+      "id": "Q1B",
+      "question": "Compare traditional data systems with Apache Hadoop in any three points.",
+      "answer": "Traditional systems use centralized storage, while Hadoop uses distributed storage across multiple machines. Traditional systems are mainly designed for structured data, whereas Hadoop can handle structured, semi-structured, and unstructured data. Traditional systems are less scalable and expensive for large data, while Hadoop is highly scalable and cost-effective."
+    },
+    {
+      "id": "Q2A",
+      "question": "Explain the Hadoop Master-Slave Architecture.",
+      "answer": "Hadoop follows a master-slave architecture in which the master node manages the cluster and the slave nodes store and process data. In HDFS, the master is the NameNode, and the slaves are DataNodes. In MapReduce, the master coordinates job execution while the workers perform the actual computation. This architecture improves fault tolerance and distributed processing."
+    },
+    {
+      "id": "Q2B",
+      "question": "Describe the HDFS Architecture and explain the functions of NameNode, DataNode, and Secondary NameNode.",
+      "answer": "HDFS is the storage layer of Hadoop and is designed to store very large files across many machines. The NameNode maintains metadata such as file names, block locations, and permissions. The DataNode stores the actual data blocks and sends block reports to the NameNode. The Secondary NameNode helps by creating checkpoints of metadata, but it is not a backup NameNode."
+    },
+    {
+      "id": "Q3A",
+      "question": "Define a Hadoop Cluster. Explain Pseudo-Distributed Mode.",
+      "answer": "A Hadoop cluster is a group of interconnected machines that work together to store and process data using Hadoop. In pseudo-distributed mode, all Hadoop daemons run on a single machine, but each daemon runs in a separate process. This mode is mainly used for learning, testing, and development. It behaves like a small cluster but on one system only."
+    },
+    {
+      "id": "Q3B",
+      "question": "Explain any two components of the Hadoop Ecosystem.",
+      "answer": "Two important components of the Hadoop ecosystem are Hive and Pig. Hive provides a SQL-like language called HiveQL for querying data stored in Hadoop. Pig is a high-level platform used to process and analyze large datasets with Pig Latin scripts. Both make Hadoop easier to use for data analysis."
+    },
+    {
+      "id": "Q4A",
+      "question": "Describe the MapReduce Architecture.",
+      "answer": "MapReduce is a programming model used in Hadoop for processing large data in parallel. It has two main phases: Map and Reduce. In the Map phase, input data is divided into key-value pairs, and in the Reduce phase, the results are combined to produce final output. This architecture makes large-scale data processing efficient and fault tolerant."
+    },
+    {
+      "id": "Q4B",
+      "question": "Explain the Anatomy of a MapReduce Program with example.",
+      "answer": "A MapReduce program mainly contains a Mapper, Reducer, Driver, and input/output files. The Mapper processes input records and produces intermediate key-value pairs. The Reducer aggregates those pairs and generates the final result, while the Driver sets up and submits the job. For example, in a word count program, the Mapper emits each word with count 1, and the Reducer adds all counts for the same word."
+    },
+    {
+      "id": "Q5A",
+      "question": "What is the role of Mapper and Reducer in the MapReduce model?",
+      "answer": "The Mapper reads input data and converts it into intermediate key-value pairs. It performs filtering, sorting, and transforming of the data. The Reducer takes all values associated with the same key and combines them to produce the final output. Together, they enable parallel processing of large datasets."
+    },
+    {
+      "id": "Q5B",
+      "question": "What is the function of Driver class in a MapReduce program?",
+      "answer": "The Driver class acts as the main controlling class in a MapReduce program. It sets configuration values, defines input and output paths, and specifies the Mapper and Reducer classes. It also submits the job to Hadoop for execution. In short, it connects all parts of the MapReduce program."
+    },
+    {
+      "id": "Q6A",
+      "question": "What is Hive? How is it different from MapReduce?",
+      "answer": "Hive is a data warehouse system built on top of Hadoop that allows querying data using HiveQL, a SQL-like language. It is mainly used for batch processing and analytics. MapReduce is a low-level programming model that requires Java coding for data processing. Hive is easier to use, while MapReduce gives more control but is more complex."
+    },
+    {
+      "id": "Q6B",
+      "question": "Differentiate between Internal and External tables in Hive.",
+      "answer": "An internal table is managed by Hive, so Hive controls both metadata and data storage. If the table is dropped, both metadata and data are deleted. An external table stores only metadata in Hive, while the actual data remains outside Hive control. If an external table is dropped, only metadata is removed, not the data."
+    },
+    {
+      "id": "Q7A",
+      "question": "Explain PIG Latin Relational Operators with examples.",
+      "answer": "Pig Latin relational operators are used to process data in Apache Pig. Common operators include LOAD for reading data, FILTER for selecting records, FOREACH for transforming data, GROUP for grouping records, and JOIN for combining datasets. Example: A = LOAD 'data' USING PigStorage(); and B = FILTER A BY age > 18;"
+    },
+    {
+      "id": "Q7B",
+      "question": "Explain Shell and Utility components in PIG.",
+      "answer": "Pig has a shell component called Grunt, which is used to write and run Pig Latin commands interactively. It helps users test scripts quickly. Pig utility components include tools for executing scripts, debugging, and handling data input/output formats. These utilities make Pig easier to use and manage."
+    },
+    {
+      "id": "Q8A",
+      "question": "Compare SQOOP and Flume.",
+      "answer": "Sqoop is used to transfer bulk data between relational databases and Hadoop, mainly for structured data movement. Flume is used to collect, aggregate, and move log and event data into Hadoop, especially streaming data. Sqoop is best for database import/export, while Flume is best for log data ingestion."
+    },
+    {
+      "id": "Q8B",
+      "question": "Write a short note on MongoDB use case.",
+      "answer": "MongoDB is a NoSQL document-based database used to store flexible and semi-structured data in JSON-like documents. It is suitable for applications that need fast development, scalability, and frequent schema changes. Common use cases include content management systems, real-time analytics, mobile apps, and e-commerce platforms where large volumes of dynamic data must be handled efficiently."
+    }
+  ]
+}

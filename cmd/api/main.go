@@ -268,6 +268,9 @@ func main() {
 	mux.HandleFunc("GET /docs", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/docs.html")
 	})
+	mux.HandleFunc("GET /labs/hadoop-review", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/isolated/hadoop-review/index.html")
+	})
 
 	// Public API
 	mux.HandleFunc("GET /api/info", apiHandler.GetAPIInfo)
@@ -289,6 +292,7 @@ func main() {
 		http.ServeFile(w, r, "./web/app.js")
 	})
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./web/assets"))))
+	mux.Handle("GET /labs/hadoop-review/static/", http.StripPrefix("/labs/hadoop-review/static/", http.FileServer(http.Dir("./web/isolated/hadoop-review"))))
 
 	// ==========================
 	// PROTECTED ROUTES (require authentication)

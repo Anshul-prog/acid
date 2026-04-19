@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isolated Hadoop Review</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            margin: 0;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem 1rem 3rem;
+        }
+        h1 { margin: 0 0 0.5rem; }
+        p.meta { color: #94a3b8; margin: 0 0 1.5rem; }
+        .controls { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+        button {
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.55rem 0.9rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+        }
+        button:hover { background: #334155; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 0.9rem;
+        }
+        .card {
+            border: 1px solid #334155;
+            background: #111827;
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+        .qid { color: #38bdf8; font-size: 0.85rem; margin-bottom: 0.5rem; }
+        .q { font-weight: 700; margin-bottom: 0.6rem; }
+        .a { color: #cbd5e1; line-height: 1.5; }
+        .status { color: #fbbf24; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Isolated Hadoop Review Module</h1>
+    <p class="meta">This module is intentionally isolated from existing app pages and loads all content dynamically from JSON.</p>
+    <div class="controls">
+        <button id="reload-btn" type="button">Reload Live Content</button>
+    </div>
+    <div id="status" class="status">Loading content...</div>
+    <section id="qa-grid" class="grid" aria-live="polite"></section>
+</main>
+<script src="/labs/hadoop-review/static/app.js"></script>
+</body>
+</html>
