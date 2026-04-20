@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -39,6 +40,7 @@ import (
 	"acid/internal/middleware" // Security & rate limiting
 	"acid/internal/pipeline"   // Data processing
 	"acid/internal/schema"     // Schema discovery
+	"acid/internal/watcher"    // Drop & Sync file watcher
 
 	// EXTERNAL PACKAGES
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -159,6 +161,13 @@ func main() {
 	// ============================================================================
 	// STEP 7: SET UP CDC (CHANGE DATA CAPTURE)
 	// ============================================================================
+	// ── Run database migrations on startup ────────────────────────────────────
+	if err := runMigrationsFromDir(ctx, pool.Pool, "./databases/migrations"); err != nil {
+		log.Printf("⚠️  Startup migrations warning: %v", err)
+	} else {
+		log.Println("✅ Startup migrations applied")
+	}
+
 	var cdcManager *clickhouse.CDCManager
 	if chPool != nil && chPool.IsAvailable() && cfg.EnableCDC {
 		cdcConfig := clickhouse.CDCConfig{
@@ -192,6 +201,32 @@ func main() {
 	}
 
 	pipelineHandler := handlers.NewPipelineHandler(pipelineProcessor)
+
+	// ============================================================================
+	// STEP 8b: START DROP & SYNC FILE WATCHER
+	// ============================================================================
+	{
+		var cdcTrigger watcher.CDCTriggerFunc
+		if cdcManager != nil {
+			cdcTrigger = func(tableName string) error {
+				return cdcManager.TriggerTableSync(tableName)
+			}
+		}
+		dropSync, err := watcher.NewDropSyncWatcher(watcher.Config{
+			WatchDir:   "./databases/incoming",
+			ArchiveDir: "./databases/archive",
+			FailedDir:  "./databases/incoming/failed",
+			PGPool:     pool.Pool,
+			Registry:   registry,
+			CDCTrigger: cdcTrigger,
+		})
+		if err != nil {
+			log.Printf("⚠️  Drop & Sync watcher init failed: %v", err)
+		} else {
+			go dropSync.Run(ctx)
+			log.Println("✅ Drop & Sync watcher started (watching databases/incoming/)")
+		}
+	}
 
 	// ============================================================================
 	// STEP 9: SET UP DB-SEARCH (ENTITY INTELLIGENCE)
@@ -376,6 +411,14 @@ func main() {
 	mux.Handle("GET /api/categories/{id}/entities", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.GetCategoryEntities)))
 
 	log.Println("🏷️ Category API routes registered")
+
+	// ============================================================================
+	// OMNI-SEARCH ENGINE (360-degree entity profiles)
+	// ============================================================================
+	omniSearchHandler := handlers.NewOmniSearchHandler(chSearch, pool.Pool)
+	mux.Handle("GET /api/omni-search",
+		authMiddleware.RequireAuth(http.HandlerFunc(omniSearchHandler.HandleOmniSearch)))
+	log.Println("🔍 Omni-Search engine registered at /api/omni-search")
 	mux.Handle("GET /api/smart-search", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if entityHandler == nil {
 			http.Error(w, `{"error":"search not enabled"}`, http.StatusNotImplemented)
@@ -512,3 +555,61 @@ func main() {
 
 	log.Println("✅ Server exited properly")
 }
+
+// runMigrationsFromDir applies all *.sql files in migrationsDir in
+// lexicographic order using the provided PostgreSQL pool. Each migration
+// is recorded in migration_history so re-runs are idempotent.
+func runMigrationsFromDir(ctx context.Context, pool *pgxpool.Pool, migrationsDir string) error {
+	// Ensure tracking table
+	_, err := pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS migration_history (
+			filename    VARCHAR(255) PRIMARY KEY,
+			applied_at  TIMESTAMPTZ DEFAULT NOW()
+		)`)
+	if err != nil {
+		return fmt.Errorf("migration_history table: %w", err)
+	}
+
+	entries, err := os.ReadDir(migrationsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // no migrations dir yet — not an error
+		}
+		return fmt.Errorf("read migrations dir: %w", err)
+	}
+
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".sql" {
+			continue
+		}
+
+		// Check if already applied
+		var applied int
+		_ = pool.QueryRow(ctx,
+			`SELECT count(*) FROM migration_history WHERE filename = $1`, e.Name(),
+		).Scan(&applied)
+		if applied > 0 {
+			continue
+		}
+
+		fPath := filepath.Join(migrationsDir, e.Name())
+		raw, err := os.ReadFile(fPath)
+		if err != nil {
+			return fmt.Errorf("read migration %q: %w", e.Name(), err)
+		}
+
+		log.Printf("[migrations] Applying %s...", e.Name())
+		if _, err := pool.Exec(ctx, string(raw)); err != nil {
+			return fmt.Errorf("apply migration %q: %w", e.Name(), err)
+		}
+
+		if _, err := pool.Exec(ctx,
+			`INSERT INTO migration_history(filename) VALUES($1) ON CONFLICT DO NOTHING`, e.Name(),
+		); err != nil {
+			log.Printf("[migrations] ⚠️ Failed to record %q: %v", e.Name(), err)
+		}
+		log.Printf("[migrations] ✅ Applied: %s", e.Name())
+	}
+	return nil
+}
+

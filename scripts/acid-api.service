@@ -1,0 +1,38 @@
+[Unit]
+Description=ACID Advanced Database Interface System API
+Documentation=https://github.com/yourusername/acid
+After=network.target postgresql.service redis.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=acid
+Group=acid
+WorkingDirectory=/opt/acid
+EnvironmentFile=/opt/acid/.env
+
+# Binary path — adjust if installed elsewhere
+ExecStart=/opt/acid/build/acid-server
+
+# Graceful shutdown timeout
+TimeoutStopSec=30s
+
+# Auto-restart on crash (not on clean exit)
+Restart=on-failure
+RestartSec=5s
+StartLimitBurst=5
+StartLimitIntervalSec=60s
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/acid/logs /opt/acid/ErrorFiles
+
+# Logging — journald captures stdout/stderr
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=acid-api
+
+[Install]
+WantedBy=multi-user.target
