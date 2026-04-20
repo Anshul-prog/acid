@@ -35,11 +35,18 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
 
 # Temporary files
 tmp/
 temp/
 
-# Build directory
+# Build artifacts
 bin/
 dist/
+build/
+scripts/build/
+scripts/logs/
+
+# Error files from pipeline
+ErrorFiles/

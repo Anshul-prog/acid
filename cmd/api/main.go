@@ -461,7 +461,7 @@ func main() {
 	handler = middleware.Recovery(handler)
 
 	// ============================================================================
-	// STEP 13: START SERVER
+	// STEP 14: START SERVER
 	// ============================================================================
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.Port),

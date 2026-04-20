@@ -62,15 +62,12 @@ USER nonroot:nonroot
 # Expose port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD ["/lsd-api", "-health-check"] || exit 1
+# Health check — uses wget (available in distroless via base image)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O /dev/null http://localhost:8080/api/health || exit 1
 
-# Set entrypoint
+# Set entrypoint — port is controlled via PORT environment variable
 ENTRYPOINT ["/lsd-api"]
-
-# Default arguments
-CMD ["--port", "8080"]
 
 # -----------------------------------------------------------------------------
 # Stage 3: Development (optional)

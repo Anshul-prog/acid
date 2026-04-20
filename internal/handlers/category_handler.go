@@ -26,7 +26,7 @@ func NewCategoryHandler(db *pgxpool.Pool) *CategoryHandler {
 // CATEGORY CRUD OPERATIONS
 // =============================================================================
 
-// List categories - GET /api/categories
+// ListCategories - GET /api/categories
 func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	entityType := r.URL.Query().Get("entity_type")
 
@@ -75,12 +75,16 @@ func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// Get single category - GET /api/categories/{id}
+// GetCategory - GET /api/categories/{id}
 func (h *CategoryHandler) GetCategory(w http.ResponseWriter, r *http.Request) {
-	id := extractID(r.URL.Path)
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		return
+	}
 
 	var cat models.Category
-	err := h.db.QueryRow(r.Context(), `
+	err = h.db.QueryRow(r.Context(), `
 		SELECT id, name, description, color, entity_type, icon, created_at, updated_at, created_by, is_active
 		FROM categories WHERE id = $1
 	`, id).Scan(&cat.ID, &cat.Name, &cat.Description, &cat.Color, &cat.EntityType, &cat.Icon, &cat.CreatedAt, &cat.UpdatedAt, &cat.CreatedBy, &cat.IsActive)
@@ -105,12 +109,8 @@ func (h *CategoryHandler) GetCategory(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Create category - POST /api/categories
+// CreateCategory - POST /api/categories
 func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Content-Type") == "" {
-		w.Header().Set("Content-Type", "application/json")
-	}
-
 	var req struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
@@ -130,7 +130,7 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	}
 
 	if req.EntityType == "" {
-		req.EntityType = "employee" // Default
+		req.EntityType = "employee"
 	}
 
 	var newID int
@@ -154,9 +154,13 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// Update category - PUT /api/categories/{id}
+// UpdateCategory - PUT /api/categories/{id}
 func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
-	id := extractID(r.URL.Path)
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		return
+	}
 
 	var req struct {
 		Name        string `json:"name"`
@@ -217,8 +221,7 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
+	if result.RowsAffected() == 0 {
 		http.Error(w, "Category not found", http.StatusNotFound)
 		return
 	}
@@ -230,11 +233,14 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// Delete category - DELETE /api/categories/{id}
+// DeleteCategory - DELETE /api/categories/{id}  (soft delete)
 func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
-	id := extractID(r.URL.Path)
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		return
+	}
 
-	// Soft delete - set is_active = false
 	result, err := h.db.Exec(r.Context(),
 		"UPDATE categories SET is_active = false, updated_at = NOW() WHERE id = $1", id)
 	if err != nil {
@@ -242,8 +248,7 @@ func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
+	if result.RowsAffected() == 0 {
 		http.Error(w, "Category not found", http.StatusNotFound)
 		return
 	}
@@ -259,7 +264,7 @@ func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 // ENTITY-CATEGORY ASSIGNMENTS
 // =============================================================================
 
-// Assign category to entity - POST /api/categories/assign
+// AssignCategory - POST /api/categories/assign
 func (h *CategoryHandler) AssignCategory(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		EntityType string `json:"entity_type"`
@@ -289,12 +294,10 @@ func (h *CategoryHandler) AssignCategory(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "assigned",
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "assigned"})
 }
 
-// Remove category from entity - POST /api/categories/unassign
+// UnassignCategory - POST /api/categories/unassign
 func (h *CategoryHandler) UnassignCategory(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		EntityType string `json:"entity_type"`
@@ -308,7 +311,7 @@ func (h *CategoryHandler) UnassignCategory(w http.ResponseWriter, r *http.Reques
 	}
 
 	_, err := h.db.Exec(r.Context(), `
-		DELETE FROM entity_categories 
+		DELETE FROM entity_categories
 		WHERE entity_type = $1 AND entity_id = $2 AND category_id = $3
 	`, req.EntityType, req.EntityID, req.CategoryID)
 
@@ -318,14 +321,17 @@ func (h *CategoryHandler) UnassignCategory(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "unassigned",
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "unassigned"})
 }
 
-// Get categories for an entity - GET /api/categories/entity/{entity_type}/{entity_id}
+// GetEntityCategories - GET /api/categories/entity/{entity_type}/{entity_id}
 func (h *CategoryHandler) GetEntityCategories(w http.ResponseWriter, r *http.Request) {
-	entityType, entityID := getEntityInfoFromPath(r.URL.Path)
+	entityType := r.PathValue("entity_type")
+	entityID, err := strconv.Atoi(r.PathValue("entity_id"))
+	if err != nil || entityID <= 0 {
+		http.Error(w, "Invalid entity ID", http.StatusBadRequest)
+		return
+	}
 
 	rows, err := h.db.Query(r.Context(), `
 		SELECT c.id, c.name, c.description, c.color, c.icon, ec.assigned_at
@@ -365,9 +371,13 @@ func (h *CategoryHandler) GetEntityCategories(w http.ResponseWriter, r *http.Req
 	})
 }
 
-// Get all entities with a category - GET /api/categories/{category_id}/entities
+// GetCategoryEntities - GET /api/categories/{id}/entities
 func (h *CategoryHandler) GetCategoryEntities(w http.ResponseWriter, r *http.Request) {
-	categoryID := extractID(r.URL.Path)
+	categoryID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || categoryID <= 0 {
+		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		return
+	}
 	entityType := r.URL.Query().Get("entity_type")
 
 	query := `
@@ -394,15 +404,15 @@ func (h *CategoryHandler) GetCategoryEntities(w http.ResponseWriter, r *http.Req
 	var entities []map[string]interface{}
 	for rows.Next() {
 		var entityID int
-		var entityType string
+		var eType string
 		var assignedAt time.Time
 		var username, email sql.NullString
-		if err := rows.Scan(&entityID, &entityType, &assignedAt, &username, &email); err != nil {
+		if err := rows.Scan(&entityID, &eType, &assignedAt, &username, &email); err != nil {
 			continue
 		}
 		entities = append(entities, map[string]interface{}{
 			"entity_id":   entityID,
-			"entity_type": entityType,
+			"entity_type": eType,
 			"assigned_at": assignedAt,
 			"username":    username.String,
 			"email":       email.String,
@@ -414,57 +424,4 @@ func (h *CategoryHandler) GetCategoryEntities(w http.ResponseWriter, r *http.Req
 		"entities": entities,
 		"count":    len(entities),
 	})
-}
-
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-// extractID extracts numeric ID from URL path like /api/categories/123
-func extractID(path string) int {
-	// Find the last numeric part of the path
-	var id int
-	n, _ := fmt.Sscanf(path, "%d", &id)
-	if n == 0 {
-		// Try parsing from end
-		for i := len(path) - 1; i >= 0; i-- {
-			if path[i] >= '0' && path[i] <= '9' {
-				start := i
-				for start > 0 && path[start-1] >= '0' && path[start-1] <= '9' {
-					start--
-				}
-				strconv.ParseInt(path[start:i+1], 10, 32)
-				id, _ = strconv.Atoi(path[start : i+1])
-				break
-			}
-		}
-	}
-	return id
-}
-
-// Extract entity_type and entity_id from path like /api/categories/entity/user/123
-func getEntityInfoFromPath(path string) (string, int) {
-	// Simple parsing - split by /
-	var parts []string
-	var current string
-	for _, c := range path {
-		if c == '/' {
-			if current != "" {
-				parts = append(parts, current)
-			}
-			current = ""
-		} else {
-			current += string(c)
-		}
-	}
-	if current != "" {
-		parts = append(parts, current)
-	}
-
-	// Get last two parts
-	if len(parts) >= 2 {
-		entityID, _ := strconv.Atoi(parts[len(parts)-1])
-		return parts[len(parts)-2], entityID
-	}
-	return "", 0
 }
