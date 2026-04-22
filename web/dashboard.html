@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +16,7 @@
             width: 100%;
             height: 100%;
             z-index: -1;
-            background: 
+            background:
                 radial-gradient(ellipse 50% 30% at 10% 10%, rgba(249, 115, 22, 0.08), transparent),
                 radial-gradient(ellipse 40% 30% at 90% 90%, rgba(234, 88, 12, 0.05), transparent),
                 var(--bg-primary);
@@ -353,6 +354,7 @@
                 transform: translateY(20px);
                 opacity: 0;
             }
+
             to {
                 transform: translateY(0);
                 opacity: 1;
@@ -380,56 +382,206 @@
                 justify-content: flex-end;
             }
         }
+
         /* ── Intelligence Console ─────────────────────────────────────── */
-        .intel-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;}
-        .intel-tab{background:var(--bg-elevated);border:1px solid var(--border);
-            border-radius:var(--radius-md);padding:.5rem 1rem;font-size:.9rem;
-            cursor:pointer;color:var(--text-secondary);transition:all .2s;}
-        .intel-tab:hover{border-color:var(--border-hover);color:var(--text-primary);}
-        .intel-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
-        .intel-panel{margin-bottom:0;}
+        .intel-tabs {
+            display: flex;
+            gap: .5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .intel-tab {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: .5rem 1rem;
+            font-size: .9rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all .2s;
+        }
+
+        .intel-tab:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+
+        .intel-tab.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .intel-panel {
+            margin-bottom: 0;
+        }
+
         /* result tables inside panels */
-        .intel-table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:.75rem;}
-        .intel-table th{background:var(--bg-elevated);padding:.5rem .75rem;
-            text-align:left;font-weight:600;border-bottom:1px solid var(--border);
-            white-space:nowrap;color:var(--text-secondary);}
-        .intel-table td{padding:.45rem .75rem;border-bottom:1px solid var(--border);
-            color:var(--text-primary);word-break:break-word;max-width:260px;}
-        .intel-table tr:hover td{background:var(--accent-light);}
-        .hit-badge{display:inline-block;padding:.1rem .45rem;border-radius:999px;
-            font-size:.72rem;font-weight:600;background:var(--primary-light);
-            color:var(--primary);margin:0 .15rem;}
-        .qtype-pill{display:inline-block;padding:.15rem .5rem;border-radius:999px;
-            font-size:.72rem;font-weight:700;background:rgba(0,217,255,.15);
-            color:#00d9ff;border:1px solid rgba(0,217,255,.3);}
-        mark.hl{background:#00d9ff22;color:inherit;border-radius:2px;padding:0 1px;}
+        .intel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .85rem;
+            margin-top: .75rem;
+        }
+
+        .intel-table th {
+            background: var(--bg-elevated);
+            padding: .5rem .75rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            color: var(--text-secondary);
+        }
+
+        .intel-table td {
+            padding: .45rem .75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+            word-break: break-word;
+            max-width: 260px;
+        }
+
+        .intel-table tr:hover td {
+            background: var(--accent-light);
+        }
+
+        .hit-badge {
+            display: inline-block;
+            padding: .1rem .45rem;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 600;
+            background: var(--primary-light);
+            color: var(--primary);
+            margin: 0 .15rem;
+        }
+
+        .qtype-pill {
+            display: inline-block;
+            padding: .15rem .5rem;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 700;
+            background: rgba(0, 217, 255, .15);
+            color: #00d9ff;
+            border: 1px solid rgba(0, 217, 255, .3);
+        }
+
+        mark.hl {
+            background: #00d9ff22;
+            color: inherit;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+
         /* Case card */
-        .case-card{background:var(--bg-elevated);border:1px solid var(--border);
-            border-radius:var(--radius-md);padding:1rem;margin-bottom:.75rem;
-            display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;}
-        .case-card:hover{border-color:var(--border-hover);}
-        .status-badge{display:inline-block;padding:.2rem .6rem;border-radius:999px;
-            font-size:.75rem;font-weight:600;}
-        .status-open{background:rgba(16,185,129,.15);color:#10b981;}
-        .status-closed{background:rgba(156,163,175,.15);color:#9ca3af;}
-        .status-under_investigation{background:rgba(245,158,11,.15);color:#f59e0b;}
+        .case-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-bottom: .75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .case-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: .2rem .6rem;
+            border-radius: 999px;
+            font-size: .75rem;
+            font-weight: 600;
+        }
+
+        .status-open {
+            background: rgba(16, 185, 129, .15);
+            color: #10b981;
+        }
+
+        .status-closed {
+            background: rgba(156, 163, 175, .15);
+            color: #9ca3af;
+        }
+
+        .status-under_investigation {
+            background: rgba(245, 158, 11, .15);
+            color: #f59e0b;
+        }
+
         /* Entity profile sections */
-        .profile-section{margin-bottom:1.5rem;}
-        .profile-section h4{font-size:.95rem;font-weight:700;
-            color:var(--text-secondary);margin-bottom:.6rem;
-            text-transform:uppercase;letter-spacing:.05em;}
-        .bio-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.5rem;}
-        .bio-item{background:var(--accent-light);border-radius:var(--radius-sm);padding:.5rem .75rem;}
-        .bio-label{font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;}
-        .bio-value{font-size:.9rem;font-weight:600;color:var(--text-primary);margin-top:.15rem;word-break:break-all;}
+        .profile-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .profile-section h4 {
+            font-size: .95rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: .6rem;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        .bio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: .5rem;
+        }
+
+        .bio-item {
+            background: var(--accent-light);
+            border-radius: var(--radius-sm);
+            padding: .5rem .75rem;
+        }
+
+        .bio-label {
+            font-size: .72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .bio-value {
+            font-size: .9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: .15rem;
+            word-break: break-all;
+        }
+
         /* Session list */
-        .session-row{display:flex;justify-content:space-between;align-items:center;
-            padding:.6rem 0;border-bottom:1px solid var(--border);gap:.5rem;flex-wrap:wrap;}
-        .session-dot{width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0;}
-        .session-dot.ended{background:#6b7280;}
+        .session-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: .6rem 0;
+            border-bottom: 1px solid var(--border);
+            gap: .5rem;
+            flex-wrap: wrap;
+        }
+
+        .session-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            flex-shrink: 0;
+        }
+
+        .session-dot.ended {
+            background: #6b7280;
         }
     </style>
 </head>
+
 <body>
     <div class="dashboard-bg"></div>
     <div class="grid-pattern"></div>
@@ -537,25 +689,30 @@
             <!-- ── DB Search Console ───────────────────────────────── -->
             <div id="panel-db-search" class="intel-panel active card">
                 <div class="card-header">
-                    <div class="card-title"><div class="card-icon">🗄️</div> Database Search Console</div>
+                    <div class="card-title">
+                        <div class="card-icon">🗄️</div> Database Search Console
+                    </div>
                     <div style="display:flex;gap:.5rem;align-items:center;">
-                        <select id="db-scope" class="form-input" style="width:140px;padding:.4rem .6rem;font-size:.85rem;">
+                        <select id="db-scope" class="form-input"
+                            style="width:140px;padding:.4rem .6rem;font-size:.85rem;">
                             <option value="database">Full DB Scan</option>
                             <option value="column">Column Scan</option>
                             <option value="row">Single Table</option>
                         </select>
-                        <button class="btn btn-secondary btn-sm" onclick="dbSearchRefresh()" title="Reload schema">↺</button>
+                        <button class="btn btn-secondary btn-sm" onclick="dbSearchRefresh()"
+                            title="Reload schema">↺</button>
                     </div>
                 </div>
 
                 <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
                     <input id="db-source-input" class="form-input" style="width:140px" placeholder="Data source ID">
                     <input id="db-schema-input" class="form-input" style="width:130px" placeholder="Schema (row only)">
-                    <input id="db-table-input"  class="form-input" style="width:150px" placeholder="Table  (row only)">
+                    <input id="db-table-input" class="form-input" style="width:150px" placeholder="Table  (row only)">
                 </div>
 
                 <div style="display:flex;gap:.75rem;margin-bottom:1rem;">
-                    <input id="db-search-q" class="form-input" placeholder="Search term — keyword / Aadhaar / PAN / phone / email …" style="flex:1">
+                    <input id="db-search-q" class="form-input"
+                        placeholder="Search term — keyword / Aadhaar / PAN / phone / email …" style="flex:1">
                     <button class="btn btn-primary" onclick="runDBSearch()">Search</button>
                 </div>
 
@@ -566,31 +723,39 @@
             <!-- ── Smart Search ────────────────────────────────────── -->
             <div id="panel-smart-search" class="intel-panel card" style="display:none;">
                 <div class="card-header">
-                    <div class="card-title"><div class="card-icon">🧠</div> Smart Intelligence Search</div>
+                    <div class="card-title">
+                        <div class="card-icon">🧠</div> Smart Intelligence Search
+                    </div>
                 </div>
                 <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem;">
                     Auto-detects Aadhaar, PAN, Passport, Driving Licence, Phone, Email, or Bank Account
                     and builds the optimal search plan.
                 </p>
                 <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;">
-                    <input id="smart-q" class="form-input" placeholder="Type anything — number, name, email, ID …" style="flex:1">
-                    <select id="smart-scope" class="form-input" style="width:160px;padding:.4rem .6rem;font-size:.85rem;">
+                    <input id="smart-q" class="form-input" placeholder="Type anything — number, name, email, ID …"
+                        style="flex:1">
+                    <select id="smart-scope" class="form-input"
+                        style="width:160px;padding:.4rem .6rem;font-size:.85rem;">
                         <option value="database">All Databases</option>
                         <option value="column">Column Scan</option>
                     </select>
                     <button class="btn btn-primary" onclick="runSmartSearch()">Search</button>
                 </div>
-                <div id="smart-search-status" style="font-size:.8rem;color:var(--text-muted);margin-bottom:.5rem;"></div>
+                <div id="smart-search-status" style="font-size:.8rem;color:var(--text-muted);margin-bottom:.5rem;">
+                </div>
                 <div id="smart-search-results"></div>
             </div>
 
             <!-- ── Cases ──────────────────────────────────────────── -->
             <div id="panel-cases" class="intel-panel card" style="display:none;">
                 <div class="card-header">
-                    <div class="card-title"><div class="card-icon">📁</div> Cases</div>
+                    <div class="card-title">
+                        <div class="card-icon">📁</div> Cases
+                    </div>
                     <div style="display:flex;gap:.5rem;">
                         <input id="case-q" class="form-input" style="width:200px" placeholder="Search cases …">
-                        <select id="case-status" class="form-input" style="width:140px;padding:.4rem .6rem;font-size:.85rem;">
+                        <select id="case-status" class="form-input"
+                            style="width:140px;padding:.4rem .6rem;font-size:.85rem;">
                             <option value="">All Statuses</option>
                             <option value="open">Open</option>
                             <option value="under_investigation">Under Investigation</option>
@@ -606,7 +771,9 @@
             <!-- ── Work Sessions ───────────────────────────────────── -->
             <div id="panel-sessions" class="intel-panel card" style="display:none;">
                 <div class="card-header">
-                    <div class="card-title"><div class="card-icon">⏱️</div> Work Sessions</div>
+                    <div class="card-title">
+                        <div class="card-icon">⏱️</div> Work Sessions
+                    </div>
                     <button class="btn btn-primary btn-sm" onclick="startWorkSession()">+ Start Session</button>
                 </div>
                 <div id="sessions-list"></div>
@@ -617,7 +784,8 @@
     </main>
 
     <!-- Entity Profile Modal -->
-    <div class="modal-overlay" id="entity-modal" style="display:none;" onclick="if(event.target===this)closeEntityModal()">
+    <div class="modal-overlay" id="entity-modal" style="display:none;"
+        onclick="if(event.target===this)closeEntityModal()">
         <div class="modal" style="max-width:860px;width:95vw;max-height:90vh;overflow-y:auto;">
             <div class="modal-header">
                 <h3 class="modal-title" id="entity-modal-name">Entity Profile</h3>
@@ -647,7 +815,8 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Description (optional)</label>
-                    <input type="text" id="key-description" class="form-input" placeholder="e.g., For automated pipelines">
+                    <input type="text" id="key-description" class="form-input"
+                        placeholder="e.g., For automated pipelines">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Scopes</label>
@@ -750,7 +919,7 @@
                 document.getElementById('user-username').textContent = currentUser.username;
                 document.getElementById('user-created').textContent = new Date(currentUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                 document.getElementById('user-auth-type').textContent = currentUser.authType || 'jwt';
-                
+
                 const roleBadge = document.getElementById('user-role-badge');
                 roleBadge.textContent = currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1);
             } catch (error) {
@@ -894,12 +1063,12 @@
 
             try {
                 const response = await fetch(`/api/auth/api-keys/${keyId}`, { method: 'DELETE' });
-                
+
                 if (!response.ok) {
                     const data = await response.json();
                     throw new Error(data.error || 'Failed to revoke API key');
                 }
-                
+
                 showToast('✓ API key revoked');
                 await loadApiKeys();
             } catch (error) {
@@ -933,7 +1102,7 @@
             const date = new Date(dateStr);
             const now = new Date();
             const diff = now - date;
-            
+
             if (diff < 60000) return 'just now';
             if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
             if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
@@ -941,4 +1110,5 @@
         }
     </script>
 </body>
+
 </html>
